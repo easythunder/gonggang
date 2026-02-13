@@ -20,6 +20,7 @@ from src.lib.polling import PollingIntervalEnforcer
 from src.lib.utils import format_response
 from src.services.group import GroupService
 from src.services.free_time import FreeTimeService
+from src.services.deletion import DeletionService
 from src.templates.free_time import render_free_time_template
 
 logger = logging.getLogger(__name__)
@@ -93,7 +94,9 @@ class FreeTimeResponse(BaseModel):
 
 def check_group_expiration(group_id: UUID) -> Dict[str, Any]:
     """
-    Check if group has expired via lazy expiration.
+    Check if group has expired via lazy expiration (T056, T067).
+    
+    Performs lazy deletion check: if expired, returns 410 and marks for soft deletion.
     
     Args:
         group_id: Group ID to check
@@ -112,8 +115,11 @@ def check_group_expiration(group_id: UUID) -> Dict[str, Any]:
         if not group:
             raise HTTPException(status_code=404, detail="Group not found")
         
-        # T056: Lazy expiration check
-        if group.expires_at < datetime.utcnow():
+        # T056+T067: Lazy expiration check using DeletionService
+        if DeletionService.check_expiry(group):
+            # Mark for soft deletion
+            DeletionService.mark_soft_deleted(db, group_id)
+            
             raise HTTPException(
                 status_code=410,
                 detail=format_response(

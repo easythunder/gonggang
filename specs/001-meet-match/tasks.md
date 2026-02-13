@@ -168,21 +168,21 @@
 
 ### Tests for User Story 5 ✅
 
-- [ ] T062 [P] [US5] Unit test for lazy deletion in tests/unit/test_lazy_deletion.py: test_check_expiry, test_return_410_when_expired
-- [ ] T063 [P] [US5] Unit test for batch deletion simulation in tests/unit/test_batch_deletion.py: test_scan_expired_groups, test_cascade_delete (Group → Submission → Interval → Result)
-- [ ] T064 [P] [US5] Unit test for retry logic in tests/unit/test_deletion_retry.py: test_exponential_backoff (1min, 5min, 15min), test_max_retries_alert
-- [ ] T065 [US5] Integration test for full deletion flow in tests/integration/test_deletion.py: create group → wait 72h+ → batch job runs → verify all records deleted
+- [X] T062 [P] [US5] Unit test for lazy deletion in tests/unit/test_lazy_deletion.py: test_check_expiry, test_return_410_when_expired
+- [X] T063 [P] [US5] Unit test for batch deletion simulation in tests/unit/test_batch_deletion.py: test_scan_expired_groups, test_cascade_delete (Group → Submission → Interval → Result)
+- [X] T064 [P] [US5] Unit test for retry logic in tests/unit/test_deletion_retry.py: test_exponential_backoff (1min, 5min, 15min), test_max_retries_alert
+- [X] T065 [US5] Integration test for full deletion flow in tests/integration/test_deletion.py: create group → wait 72h+ → batch job runs → verify all records deleted
 
 ### Implementation for User Story 5
 
-- [ ] T066 [P] [US5] Implement lazy deletion check in src/services/deletion.py (check expires_at <= now, trigger soft-delete if needed)
-- [ ] T067 [P] [US5] Integrate lazy deletion into GET endpoints (all group/submission/free-time reads check expiry first, return 410 if expired)
-- [ ] T068 [P] [US5] Implement batch deletion task in src/services/batch_deletion.py (scan for expires_at <= now, cascade delete Group → Submissions → Intervals → Results → audit log)
-- [ ] T069 [P] [US5] Implement exponential retry logic in src/services/batch_deletion.py (failure tracking per group, retry at 1min, 5min, 15min intervals, alert after 3 failures)
-- [ ] T070 [US5] Implement DeletionLog recording in src/services/batch_deletion.py (log group_id, deleted_at, reason, submission_count, error_code, retry_count)
-- [ ] T071 [US5] Create CronJob specification in k8s/cronjob.yaml (batch deletion runs every 5-15min, restart policy, logging)
-- [ ] T072 [US5] Create batch deletion CLI in src/cli/batch_deletion.py for manual testing (python -m src.cli.batch_deletion --dry-run, --force)
-- [ ] T073 [US5] Add deletion success rate metric to monitoring (log count of successful vs failed deletions per batch run)
+- [X] T066 [P] [US5] Implement lazy deletion check in src/services/deletion.py (check expires_at <= now, trigger soft-delete if needed)
+- [X] T067 [P] [US5] Integrate lazy deletion into GET endpoints (all group/submission/free-time reads check expiry first, return 410 if expired)
+- [X] T068 [P] [US5] Implement batch deletion task in src/services/batch_deletion.py (scan for expires_at <= now, cascade delete Group → Submissions → Intervals → Results → audit log)
+- [X] T069 [P] [US5] Implement exponential retry logic in src/services/batch_deletion.py (failure tracking per group, retry at 1min, 5min, 15min intervals, alert after 3 failures)
+- [X] T070 [US5] Implement DeletionLog recording in src/services/batch_deletion.py (log group_id, deleted_at, reason, submission_count, error_code, retry_count)
+- [X] T071 [US5] Create CronJob specification in k8s/cronjob.yaml (batch deletion runs every 5-15min, restart policy, logging)
+- [X] T072 [US5] Create batch deletion CLI in src/cli/batch_deletion.py for manual testing (python -m src.cli.batch_deletion --dry-run, --force)
+- [X] T073 [US5] Add deletion success rate metric to monitoring (log count of successful vs failed deletions per batch run)
 
 **Checkpoint**: Lazy deletion returns 410 on expired access, batch job removes stale data reliably with retry, audit logs complete. All user stories functional!
 

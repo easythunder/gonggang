@@ -1,0 +1,150 @@
+---
+# Kubernetes CronJob for batch deletion (T071)
+# Runs batch deletion every 5-15 minutes
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: meet-match-batch-deletion
+  namespace: default
+  labels:
+    app: meet-match
+    component: batch-deletion
+spec:
+  # Run batch deletion every 10 minutes
+  # Format: minute hour day month day-of-week
+  schedule: "*/10 * * * *"
+  
+  # Job history limits
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  
+  # Concurrency policy: prevent overlapping runs
+  concurrencyPolicy: Forbid
+  
+  # Suspend if needed
+  suspend: false
+  
+  # Starting deadline (seconds)
+  startingDeadlineSeconds: 300
+  
+  jobTemplate:
+    spec:
+      # Backoff limit for failed jobs
+      backoffLimit: 3
+      
+      # TTL for cleanup
+      ttlSecondsAfterFinished: 3600
+      
+      # Job template
+      template:
+        metadata:
+          labels:
+            app: meet-match
+            component: batch-deletion
+        spec:
+          # Restart policy: never for CronJob pods
+          restartPolicy: Never
+          
+          # Container spec
+          containers:
+          - name: batch-deletion
+            image: meet-match:latest
+            imagePullPolicy: IfNotPresent
+            
+            # Run the batch deletion CLI
+            command:
+            - python
+            - -m
+            - src.cli.batch_deletion
+            - --force
+            - --verbose
+            
+            # Environment variables
+            env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: meet-match-secrets
+                  key: database-url
+            - name: LOG_LEVEL
+              value: "INFO"
+            
+            # Resource limits
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+            
+            # Logging
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              readOnlyRootFilesystem: false
+         
+          # Pod security context
+          securityContext:
+            fsGroup: 1000
+          
+          # Service account
+          serviceAccountName: meet-match-batch-deletion
+          
+          # Node affinity (optional)
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                  - key: node-role.kubernetes.io/batch
+                    operator: In
+                    values:
+                    - "true"
+
+---
+# Service Account for batch deletion pod
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: meet-match-batch-deletion
+  namespace: default
+  labels:
+    app: meet-match
+    component: batch-deletion
+
+---
+# Role for batch deletion (database access only)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: meet-match-batch-deletion
+  namespace: default
+  labels:
+    app: meet-match
+    component: batch-deletion
+rules:
+# Minimal permissions: no K8s API access needed
+# Database access is handled via env vars
+
+---
+# RoleBinding for batch deletion
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: meet-match-batch-deletion
+  namespace: default
+  labels:
+    app: meet-match
+    component: batch-deletion
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: meet-match-batch-deletion
+subjects:
+- kind: ServiceAccount
+  name: meet-match-batch-deletion
+  namespace: default
