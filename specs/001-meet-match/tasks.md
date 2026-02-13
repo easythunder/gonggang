@@ -143,18 +143,18 @@
 
 ### Tests for User Story 4 ✅
 
-- [ ] T053 [P] [US4] Contract test for GET /groups/{id}/free-time in tests/contract/test_free_time.py: test_poll_with_results, test_poll_no_results, test_poll_expired (410)
-- [ ] T054 [P] [US4] Contract test for polling interval enforcement in tests/contract/test_polling_interval.py: test_interval_header, test_rapid_requests_throttled
-- [ ] T055 [US4] Integration test for polling flow in tests/integration/test_polling.py: submit 3 images → poll multiple times → verify results consistent, intervals enforced
+- [X] T053 [P] [US4] Contract test for GET /groups/{id}/free-time in tests/contract/test_free_time.py: test_poll_with_results, test_poll_no_results, test_poll_expired (410)
+- [X] T054 [P] [US4] Contract test for polling interval enforcement in tests/contract/test_polling_interval.py: test_interval_header, test_rapid_requests_throttled
+- [X] T055 [US4] Integration test for polling flow in tests/integration/test_polling.py: submit 3 images → poll multiple times → verify results consistent, intervals enforced
 
 ### Implementation for User Story 4
 
-- [ ] T056 [US4] Implement GET /groups/{groupId}/free-time endpoint in src/api/free_time.py with lazy expiration check (410 if expires_at < now), caching of latest result
-- [ ] T057 [US4] Add response structure per openapi.yaml: group_id, participant_count, free_time array (day, start, end, duration_minutes, overlap_count), computed_at, expires_at
-- [ ] T058 [US4] Implement server-enforced polling interval in src/lib/polling.py: extract client interval_ms from query, ignore it, enforce 2-3s (2000-3000ms) server response header X-Poll-Wait
-- [ ] T059 [US4] Add availability grid response: availability_by_day JSONB (array of slots with slot_id, time_window, availability_count, is_common) per spec
-- [ ] T060 [US4] Add response headers: X-Response-Time (ms), X-Poll-Wait (2000-3000 ms), X-Calculation-Version
-- [ ] T061 [US4] Create frontend template (HTML/JSON response) showing: candidate cards (top 5, ranked), weekly grid heatmap, participants list (nicknames)
+- [X] T056 [US4] Implement GET /groups/{groupId}/free-time endpoint in src/api/free_time.py with lazy expiration check (410 if expires_at < now), caching of latest result
+- [X] T057 [US4] Add response structure per openapi.yaml: group_id, participant_count, free_time array (day, start, end, duration_minutes, overlap_count), computed_at, expires_at
+- [X] T058 [US4] Implement server-enforced polling interval in src/lib/polling.py: extract client interval_ms from query, ignore it, enforce 2-3s (2000-3000ms) server response header X-Poll-Wait
+- [X] T059 [US4] Add availability grid response: availability_by_day JSONB (array of slots with slot_id, time_window, availability_count, is_common) per spec
+- [X] T060 [US4] Add response headers: X-Response-Time (ms), X-Poll-Wait (2000-3000 ms), X-Calculation-Version
+- [X] T061 [US4] Create frontend template (HTML/JSON response) showing: candidate cards (top 5, ranked), weekly grid heatmap, participants list (nicknames)
 
 **Checkpoint**: Polling API returns correct results, enforces 2-3s intervals, expiration checks work. Grid and candidates visualized. Ready for deletion (US5).
 

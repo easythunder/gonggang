@@ -79,12 +79,14 @@ async def shutdown_event():
 from src.api.groups import router as groups_router
 from src.api.submissions import router as submissions_router
 from src.api.submissions import set_db_manager
+from src.api.free_time import router as free_time_router
 
 # Initialize submissions API with db_manager
 set_db_manager(db_manager)
 
 app.include_router(groups_router)
 app.include_router(submissions_router)
+app.include_router(free_time_router)
 
 
 if __name__ == "__main__":
