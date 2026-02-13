@@ -1,6 +1,6 @@
 """Submission service for managing schedule submissions."""
 import logging
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, TYPE_CHECKING
 from uuid import UUID
 from src.models.models import Submission, SubmissionStatus
 from src.repositories.submission import SubmissionRepository
@@ -8,6 +8,9 @@ from src.repositories.interval import IntervalRepository
 from src.repositories.group import GroupRepository
 from src.services.interval_extractor import IntervalExtractor, IntervalData
 from src.lib.database import DatabaseManager
+
+if TYPE_CHECKING:
+    from src.services.calculation import CalculationService
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +35,7 @@ class SubmissionService:
         interval_repo: Optional[IntervalRepository] = None,
         group_repo: Optional[GroupRepository] = None,
         interval_extractor: Optional[IntervalExtractor] = None,
+        calculation_service: Optional["CalculationService"] = None,
     ):
         """Initialize submission service.
         
@@ -41,12 +45,25 @@ class SubmissionService:
             interval_repo: IntervalRepository instance (created if None)
             group_repo: GroupRepository instance (created if None)
             interval_extractor: IntervalExtractor instance (created if None)
+            calculation_service: CalculationService instance (created if None, lazy-loaded)
         """
         self.session = session
         self.submission_repo = submission_repo or SubmissionRepository(session)
         self.interval_repo = interval_repo or IntervalRepository(session)
         self.group_repo = group_repo or GroupRepository(session)
         self.interval_extractor = interval_extractor or IntervalExtractor()
+        self._calculation_service = calculation_service
+
+    @property
+    def calculation_service(self) -> "CalculationService":
+        """Lazy-load calculation service on first access.
+        
+        This avoids circular imports and allows tests to inject mocks.
+        """
+        if self._calculation_service is None:
+            from src.services.calculation import CalculationService
+            self._calculation_service = CalculationService(self.session)
+        return self._calculation_service
 
     def create_submission(
         self,
@@ -114,6 +131,21 @@ class SubmissionService:
                 logger.info(f"Stored {len(intervals)} intervals for submission {submission.id}")
 
             self.session.commit()
+
+            # Trigger calculation after successful submission (T050)
+            # This ensures free-time results are updated immediately
+            if status == SubmissionStatus.SUCCESS:
+                try:
+                    result, calc_error = self.calculation_service.trigger_calculation(group_id)
+                    if calc_error:
+                        logger.warning(f"Calculation failed after submission: {calc_error}")
+                    else:
+                        calc_version = result.version if result else "unknown"
+                        logger.info(f"Calculation triggered for group {group_id}, version {calc_version}")
+                except Exception as e:
+                    logger.error(f"Failed to trigger calculation: {e}", exc_info=True)
+                    # Don't fail submission if calculation fails - it can be retried later
+
             return submission, None
 
         except DuplicateSubmissionError as e:

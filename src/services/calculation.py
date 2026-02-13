@@ -241,12 +241,8 @@ class CalculationService:
         try:
             result = self.free_time_result_repo.create_result(
                 group_id=group_id,
-                version=1,
                 availability_by_day={day: [] for day in range(7)},
                 free_time_intervals={day: [] for day in range(7)},
-                computed_at=dt.utcnow(),
-                status="SUCCESS",
-                error_code=None
             )
             self.session.commit()
             return result, None
@@ -274,28 +270,19 @@ class CalculationService:
             existing_result = self.free_time_result_repo.find_by_group_id(group_id)
             
             if existing_result:
-                # Update existing result
-                new_version = existing_result.version + 1
+                # Update existing result (version auto-increments in repository)
                 self.free_time_result_repo.update_result(
-                    existing_result.id,
-                    version=new_version,
+                    group_id=group_id,
                     availability_by_day=free_time_by_day,
                     free_time_intervals=free_time_by_day,
-                    computed_at=dt.utcnow(),
-                    status="SUCCESS",
-                    error_code=None
                 )
-                logger.info(f"Updated calculation result v{new_version} for group {group_id}")
+                logger.info(f"Updated calculation result for group {group_id}")
             else:
                 # Create new result
                 result = self.free_time_result_repo.create_result(
                     group_id=group_id,
-                    version=1,
                     availability_by_day=free_time_by_day,
                     free_time_intervals=free_time_by_day,
-                    computed_at=dt.utcnow(),
-                    status="SUCCESS",
-                    error_code=None
                 )
                 logger.info(f"Created new calculation result v1 for group {group_id}")
 

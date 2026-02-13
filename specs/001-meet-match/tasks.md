@@ -127,9 +127,9 @@
 - [X] T047 [P] [US3] Implement free-time AND calculator in src/services/calculation.py (intersection of all participant intervals, conservative slot logic)
 - [X] T048 [P] [US3] Implement candidate extraction in src/services/candidates.py (merge consecutive free slots, apply min_duration filter, rank by duration/time/overlap)
 - [X] T049 [P] [US3] Implement availability grid generator in src/services/availability_grid.py (build full week grid with overlap counts per slot, status_by_day JSONB structure per data-model.md)
-- [ ] T050 [US3] Implement CalculationService in src/services/calculation.py (trigger_calculation, recalculate_on_submission, recalculate_on_deletion, version management)
-- [ ] T051 [US3] Integrate calculation trigger into SubmissionService (T038): after successful submission, call CalculationService.trigger_calculation
-- [ ] T052 [US3] Add calculation versioning: increment version in FreeTimeResult on each recalc, store computed_at timestamp
+- [X] T050 [US3] Implement CalculationService in src/services/calculation.py (trigger_calculation, recalculate_on_submission, recalculate_on_deletion, version management)
+- [X] T051 [US3] Integrate calculation trigger into SubmissionService (T038): after successful submission, call CalculationService.trigger_calculation
+- [X] T052 [US3] Add calculation versioning: increment version in FreeTimeResult on each recalc, store computed_at timestamp
 
 **Checkpoint**: Free-time calculations accurate for 2-50 participants, candidates ranked correctly, grid shows overlap counts. All results stored with version control. Ready for results visualization (US4).
 
