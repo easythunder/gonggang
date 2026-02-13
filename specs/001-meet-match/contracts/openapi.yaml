@@ -1,0 +1,326 @@
+openapi: 3.0.0
+info:
+  title: Meet-Match API
+  version: 0.1.0
+  description: 공통 빈시간 계산 및 공유 서비스
+  contact:
+    name: Gonggang Dev Team
+
+servers:
+  - url: https://api.gonggang.example.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local Development
+
+tags:
+  - name: Groups
+    description: 그룹 생성 및 관리
+  - name: Submissions
+    description: 시간표 제출
+  - name: Results
+    description: 공강 결과 조회 (폴링)
+
+paths:
+  /groups:
+    post:
+      tags:
+        - Groups
+      summary: 새 그룹 생성
+      operationId: createGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                group_name:
+                  type: string
+                  nullable: true
+                  example: "study_group"
+                display_unit_minutes:
+                  type: integer
+                  enum: [10, 20, 30, 60]
+                  default: 30
+              required:
+                - display_unit_minutes
+      responses:
+        '201':
+          description: 그룹 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupResponse'
+        '400':
+          description: 잘못된 요청 (group_name 중복 등)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /groups/{groupId}:
+    get:
+      tags:
+        - Groups
+      summary: 그룹 정보 조회
+      operationId: getGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 그룹 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupResponse'
+        '404':
+          description: 그룹 없음
+        '410':
+          description: 그룹 만료됨
+
+  /groups/{groupId}/submissions:
+    post:
+      tags:
+        - Submissions
+      summary: 시간표 이미지 제출 (OCR 파싱 + 자동 닉네임)
+      operationId: uploadTimeTable
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: 시간표 이미지 (JPEG, PNG)
+              required:
+                - image
+      responses:
+        '201':
+          description: 제출 성공 (OCR 파싱 & 닉네임 자동 부여)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  submission_id:
+                    type: string
+                    format: uuid
+                  nickname:
+                    type: string
+                    example: "happy_blue_lion"
+                  success:
+                    type: boolean
+                    example: true
+          headers:
+            X-Response-Time:
+              schema:
+                type: integer
+              description: 응답 시간 (밀리초, 5000 이하)
+        '400':
+          description: 그룹이 가득 찼거나 이미지 형식 오류
+        '408':
+          description: 파싱 타임아웃 (> 5초)
+        '410':
+          description: 그룹 만료됨
+
+  /groups/{groupId}/submissions/{submissionId}:
+    delete:
+      tags:
+        - Submissions
+      summary: 제출 삭제 (전체 재계산)
+      operationId: deleteSubmission
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 및 재계산 완료
+        '404':
+          description: 제출 없음
+        '410':
+          description: 그룹 만료됨
+
+  /groups/{groupId}/free-time:
+    get:
+      tags:
+        - Results
+      summary: 공강 결과 폴링 (서버 강제 2-3초 간격)
+      operationId: getGroupFreeTime
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: interval_ms
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: 만약 클라이언트가 간격을 요청해도 서버가 무시하고 2-3초 강제 적용
+      responses:
+        '200':
+          description: 현재 공강 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FreeTimeResponse'
+          headers:
+            X-Poll-Wait:
+              schema:
+                type: integer
+              description: 클라이언트에게 권장 폴링 간격 (밀리초, 2000-3000)
+        '410':
+          description: 그룹 만료됨 (모든 데이터 삭제 예정)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "group_expired"
+                  message:
+                    type: string
+
+components:
+  schemas:
+    GroupResponse:
+      type: object
+      properties:
+        group_id:
+          type: string
+          format: uuid
+        group_name:
+          type: string
+          example: "joyful_bright_morning"
+        created_at:
+          type: string
+          format: date-time
+        last_activity_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        invite_url:
+          type: string
+          format: uri
+        share_url:
+          type: string
+          format: uri
+        display_unit_minutes:
+          type: integer
+        max_participants:
+          type: integer
+        participant_count:
+          type: integer
+      required:
+        - group_id
+        - group_name
+        - expires_at
+        - invite_url
+        - share_url
+
+    FreeTimeResponse:
+      type: object
+      properties:
+        group_id:
+          type: string
+          format: uuid
+        group_name:
+          type: string
+        participant_count:
+          type: integer
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              nickname:
+                type: string
+              submitted_at:
+                type: string
+                format: date-time
+        free_time:
+          type: array
+          items:
+            type: object
+            properties:
+              day:
+                type: string
+                enum:
+                  - MONDAY
+                  - TUESDAY
+                  - WEDNESDAY
+                  - THURSDAY
+                  - FRIDAY
+                  - SATURDAY
+                  - SUNDAY
+              start_minute:
+                type: integer
+                description: 00시부터의 분 (0-1439)
+              end_minute:
+                type: integer
+              duration_minutes:
+                type: integer
+              overlap_count:
+                type: integer
+                description: 이 시간대에 가능한 인원 수 (0-50)
+        computed_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        display_unit_minutes:
+          type: integer
+      required:
+        - group_id
+        - group_name
+        - participant_count
+        - free_time
+        - computed_at
+        - expires_at
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "INVALID_REQUEST"
+        message:
+          type: string
+          example: "Group name must be unique"
+        code:
+          type: integer
+          example: 400
+      required:
+        - error
+        - message

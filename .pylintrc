@@ -1,0 +1,15 @@
+[MASTER]
+init-hook='import sys; sys.path.insert(0, "src")'
+ignore=migrations,tests
+disable=
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    R0903,  # too-few-public-methods
+    W0212,  # protected-access
+
+[FORMAT]
+max-line-length=100
+
+[DESIGN]
+max-attributes=7
