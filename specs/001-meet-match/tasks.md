@@ -90,20 +90,20 @@
 ### Tests for User Story 2 ✅
 
 - [ ] T031 [P] [US2] Contract test for POST /groups/{id}/submissions: test_upload_valid_image, test_upload_invalid_format, test_ocr_timeout in tests/contract/test_submissions.py
-- [ ] T032 [P] [US2] Unit test for OCR wrapper (Tesseract/PaddleOCR) in tests/unit/test_ocr.py: test_parse_schedule, test_parse_corrupted_image, test_timeout
-- [ ] T033 [P] [US2] Unit test for slot normalization (conservative ceiling/floor) in tests/unit/test_slot_normalization.py (9:15~9:45 → empty for 30min slots)
-- [ ] T034 [US2] Integration test for submission flow in tests/integration/test_image_submission.py: upload → parse → store → verify intervals
+- [X] T032 [P] [US2] Unit test for OCR wrapper (Tesseract/PaddleOCR) in tests/unit/test_ocr.py: test_parse_schedule, test_parse_corrupted_image, test_timeout
+- [X] T033 [P] [US2] Unit test for slot normalization (conservative ceiling/floor) in tests/unit/test_slot_normalization.py (9:15~9:45 → empty for 30min slots)
+- [X] T034 [US2] Integration test for submission flow in tests/integration/test_image_submission.py: upload → parse → store → verify intervals
 
 ### Implementation for User Story 2
 
-- [ ] T035 [P] [US2] Create OCR wrapper in src/services/ocr.py supporting Tesseract and PaddleOCR with timeout (3s max) and error handling
-- [ ] T036 [P] [US2] Implement slot normalization in src/lib/slot_utils.py (conservative: ceiling for start, floor for end; 5-min granularity)
-- [ ] T037 [P] [US2] Create interval extraction logic in src/services/interval_extractor.py (parse OCR text → list of (day, start, end) tuples)
-- [ ] T038 [US2] Implement SubmissionService in src/services/submission.py (create_submission, store_intervals, detect_duplicate_nickname, update_last_activity)
-- [ ] T039 [US2] Implement POST /groups/{groupId}/submissions endpoint in src/api/submissions.py with multipart file upload, OCR timeout handling (408 Timeout), image memory-only processing
-- [ ] T040 [US2] Add response header X-Response-Time to submission endpoint, ensure <5s total (OCR + DB + calc)
-- [ ] T041 [US2] Verify image is discarded from memory immediately after OCR (add test in tests/unit/test_ocr_memory_cleanup.py)
-- [ ] T042 [US2] Add submission logging (nickname assigned, interval count, response time) per src/lib/logging.py spec
+- [X] T035 [P] [US2] Create OCR wrapper in src/services/ocr.py supporting Tesseract and PaddleOCR with timeout (3s max) and error handling
+- [X] T036 [P] [US2] Implement slot normalization in src/lib/slot_utils.py (conservative: ceiling for start, floor for end; 5-min granularity)
+- [X] T037 [P] [US2] Create interval extraction logic in src/services/interval_extractor.py (parse OCR text → list of (day, start, end) tuples)
+- [X] T038 [US2] Implement SubmissionService in src/services/submission.py (create_submission, store_intervals, detect_duplicate_nickname, update_last_activity)
+- [X] T039 [US2] Implement POST /groups/{groupId}/submissions endpoint in src/api/submissions.py with multipart file upload, OCR timeout handling (408 Timeout), image memory-only processing
+- [X] T040 [US2] Add response header X-Response-Time to submission endpoint, ensure <5s total (OCR + DB + calc)
+- [X] T041 [US2] Verify image is discarded from memory immediately after OCR (add test in tests/unit/test_ocr_memory_cleanup.py)
+- [X] T042 [US2] Add submission logging (nickname assigned, interval count, response time) per src/lib/logging.py spec
 
 **Checkpoint**: Images upload successfully, OCR parses within 5s, nicknames auto-assigned uniquely, intervals stored with 5-min normalization. Memory cleaned (no disk artifacts). Ready for calculation (US3).
 
