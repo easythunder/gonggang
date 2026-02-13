@@ -117,16 +117,16 @@
 
 ### Tests for User Story 3 ✅
 
-- [ ] T043 [P] [US3] Unit test for AND calculation in tests/unit/test_and_calculation.py: test_two_person_and, test_three_person_and, test_empty_intersection, test_all_free
-- [ ] T044 [P] [US3] Unit test for candidate generation in tests/unit/test_candidates.py: test_merge_consecutive_slots, test_min_duration_filter, test_ranking_by_duration
-- [ ] T045 [P] [US3] Unit test for availability grid generation in tests/unit/test_availability_grid.py: test_grid_structure, test_overlap_count per slot
-- [ ] T046 [US3] Integration test for calculation E2E in tests/integration/test_calculation.py: 3 submissions → calculate → verify results match expected intersection
+- [X] T043 [P] [US3] Unit test for AND calculation in tests/unit/test_and_calculation.py: test_two_person_and, test_three_person_and, test_empty_intersection, test_all_free
+- [X] T044 [P] [US3] Unit test for candidate generation in tests/unit/test_candidates.py: test_merge_consecutive_slots, test_min_duration_filter, test_ranking_by_duration
+- [X] T045 [P] [US3] Unit test for availability grid generation in tests/unit/test_availability_grid.py: test_grid_structure, test_overlap_count per slot
+- [X] T046 [US3] Integration test for calculation E2E in tests/integration/test_calculation.py: 3 submissions → calculate → verify results match expected intersection
 
 ### Implementation for User Story 3
 
-- [ ] T047 [P] [US3] Implement free-time AND calculator in src/services/calculation.py (intersection of all participant intervals, conservative slot logic)
-- [ ] T048 [P] [US3] Implement candidate extraction in src/services/candidates.py (merge consecutive free slots, apply min_duration filter, rank by duration/time/overlap)
-- [ ] T049 [P] [US3] Implement availability grid generator in src/services/availability_grid.py (build full week grid with overlap counts per slot, status_by_day JSONB structure per data-model.md)
+- [X] T047 [P] [US3] Implement free-time AND calculator in src/services/calculation.py (intersection of all participant intervals, conservative slot logic)
+- [X] T048 [P] [US3] Implement candidate extraction in src/services/candidates.py (merge consecutive free slots, apply min_duration filter, rank by duration/time/overlap)
+- [X] T049 [P] [US3] Implement availability grid generator in src/services/availability_grid.py (build full week grid with overlap counts per slot, status_by_day JSONB structure per data-model.md)
 - [ ] T050 [US3] Implement CalculationService in src/services/calculation.py (trigger_calculation, recalculate_on_submission, recalculate_on_deletion, version management)
 - [ ] T051 [US3] Integrate calculation trigger into SubmissionService (T038): after successful submission, call CalculationService.trigger_calculation
 - [ ] T052 [US3] Add calculation versioning: increment version in FreeTimeResult on each recalc, store computed_at timestamp
