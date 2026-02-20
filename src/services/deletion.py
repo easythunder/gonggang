@@ -8,7 +8,7 @@ from datetime import datetime
 from uuid import UUID
 from sqlalchemy.orm import Session
 
-from src.models.group import Group
+from src.models.models import Group
 
 logger = logging.getLogger(__name__)
 

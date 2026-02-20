@@ -13,9 +13,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
-from src.models.group import Group
-from src.models.free_time_result import FreeTimeResult
-from src.database import Base
+from src.models.models import Group, FreeTimeResult, Base
 
 
 @pytest.fixture

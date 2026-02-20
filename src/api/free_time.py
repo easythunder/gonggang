@@ -109,7 +109,7 @@ def check_group_expiration(group_id: UUID) -> Dict[str, Any]:
     """
     db = db_manager.get_session()
     try:
-        from src.models.group import Group
+        from src.models.models import Group
         group = db.query(Group).filter(Group.id == group_id).first()
         
         if not group:
@@ -165,8 +165,7 @@ async def get_group_free_time(
     db = context["db"]
     
     try:
-        from src.models.free_time_result import FreeTimeResult
-        from src.models.submission import Submission
+        from src.models.models import FreeTimeResult, Submission
         
         # Get latest calculation result
         result = db.query(FreeTimeResult).filter(
@@ -259,7 +258,7 @@ async def get_group_info(groupId: UUID):
     db = context["db"]
     
     try:
-        from src.models.submission import Submission
+        from src.models.models import Submission
         
         submission_count = db.query(Submission).filter(
             Submission.group_id == groupId,
@@ -304,8 +303,7 @@ async def view_group_free_time_html(groupId: UUID):
     db = context["db"]
     
     try:
-        from src.models.free_time_result import FreeTimeResult
-        from src.models.submission import Submission
+        from src.models.models import FreeTimeResult, Submission
         from fastapi.responses import HTMLResponse
         
         # Get latest result

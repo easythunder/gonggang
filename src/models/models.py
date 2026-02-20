@@ -3,10 +3,10 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional, List
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Boolean, JSON, Enum
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Boolean, JSON, Enum, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 import enum as py_enum
 
 Base = declarative_base()
@@ -42,18 +42,18 @@ class Group(Base):
     max_participants = Column(Integer, nullable=False, default=50)
 
     # Relationships
-    submissions: List["Submission"] = relationship(
+    submissions: Mapped[List["Submission"]] = relationship(
         "Submission",
         back_populates="group",
         cascade="all, delete-orphan",
     )
-    free_time_result: Optional["FreeTimeResult"] = relationship(
+    free_time_result: Mapped[Optional["FreeTimeResult"]] = relationship(
         "FreeTimeResult",
         back_populates="group",
         uselist=False,
         cascade="all, delete-orphan",
     )
-    deletion_logs: List["DeletionLog"] = relationship(
+    deletion_logs: Mapped[List["DeletionLog"]] = relationship(
         "DeletionLog",
         back_populates="group",
         cascade="all, delete-orphan",
@@ -94,16 +94,15 @@ class Submission(Base):
     error_reason = Column(String(500), nullable=True)
 
     # Relationships
-    group: Group = relationship("Group", back_populates="submissions")
-    intervals: List["Interval"] = relationship(
+    group: Mapped[Group] = relationship("Group", back_populates="submissions")
+    intervals: Mapped[List["Interval"]] = relationship(
         "Interval",
         back_populates="submission",
         cascade="all, delete-orphan",
     )
 
     __table_args__ = (
-        # Unique constraint: group + nickname combination
-        ("group_id", "nickname"),
+        UniqueConstraint("group_id", "nickname", name="uq_group_nickname"),
     )
 
     def __repr__(self) -> str:
@@ -133,11 +132,10 @@ class Interval(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     # Relationships
-    submission: Submission = relationship("Submission", back_populates="intervals")
+    submission: Mapped[Submission] = relationship("Submission", back_populates="intervals")
 
     __table_args__ = (
-        # Index for efficient lookups by day
-        ("day_of_week", "start_minute"),
+        Index("ix_day_start", "day_of_week", "start_minute"),
     )
 
     def __repr__(self) -> str:
@@ -177,38 +175,7 @@ class FreeTimeResult(Base):
     error_code = Column(String(100), nullable=True)
 
     # Relationships
-    group: Group = relationship("Group", back_populates="free_time_result")
+    group: Mapped[Group] = relationship("Group", back_populates="free_time_result")
 
     def __repr__(self) -> str:
         return f"<FreeTimeResult {self.id} group={self.group_id} v{self.version}>"
-
-
-class DeletionLog(Base):
-    """Audit log for deletions."""
-
-    __tablename__ = "deletion_logs"
-
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        nullable=False,
-    )
-    group_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("groups.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    deleted_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    reason = Column(String(100), nullable=False)  # 'expired', 'manual', 'batch_failure'
-    submission_count = Column(Integer, nullable=True)
-    asset_count = Column(Integer, nullable=True)
-    error_code = Column(String(100), nullable=True)
-    retry_count = Column(Integer, nullable=False, default=0)
-
-    # Relationships
-    group: Optional[Group] = relationship("Group", back_populates="deletion_logs")
-
-    def __repr__(self) -> str:
-        return f"<DeletionLog {self.id} group={self.group_id} reason={self.reason}>"

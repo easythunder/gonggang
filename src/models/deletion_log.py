@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
-from src.lib.database import Base
+from src.models.models import Base
 
 
 class DeletionLog(Base):

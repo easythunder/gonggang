@@ -11,9 +11,8 @@ from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.models.group import Group
+from src.models.models import Group, Base
 from src.models.deletion_retry import DeletionRetry
-from src.database import Base
 
 
 @pytest.fixture

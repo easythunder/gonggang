@@ -11,10 +11,7 @@ from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.models.group import Group
-from src.models.submission import Submission
-from src.models.free_time_result import FreeTimeResult
-from src.database import Base
+from src.models.models import Group, Submission, FreeTimeResult, Base
 
 
 @pytest.fixture

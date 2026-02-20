@@ -12,10 +12,7 @@ from uuid import UUID
 from typing import List, Dict, Tuple
 from sqlalchemy.orm import Session
 
-from src.models.group import Group
-from src.models.submission import Submission
-from src.models.interval import Interval
-from src.models.free_time_result import FreeTimeResult
+from src.models.models import Group, Submission, Interval, FreeTimeResult
 from src.models.deletion_log import DeletionLog
 from src.models.deletion_retry import DeletionRetry
 

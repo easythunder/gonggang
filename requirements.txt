@@ -1,10 +1,11 @@
 # Core Dependencies
 fastapi==0.95.2
-uvicorn[standard]==0.21.3
+uvicorn[standard]
 sqlalchemy==2.0.16
 psycopg2-binary==2.9.6
 pydantic==1.10.7
 python-dotenv==1.0.0
+python-multipart
 
 # Image Processing & OCR
 Pillow==9.5.0

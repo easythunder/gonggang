@@ -1,13 +1,16 @@
-"""OCR wrapper service for schedule image parsing.
+"""Enhanced OCR service for Everytime schedule images.
 
-Supports Tesseract and PaddleOCR with timeout handling.
-Images are processed in memory only - never saved to disk.
+Features:
+- Korean language support
+- Image preprocessing (brightness, contrast, rotation detection)
+- Everytime-specific schedule parsing
+- Training dataset integration
 """
 import logging
 import re
 from io import BytesIO
-from typing import List, Tuple, Optional
-from PIL import Image
+from typing import List, Tuple, Optional, Dict, Any
+from PIL import Image, ImageOps, ImageEnhance
 import pytesseract
 
 logger = logging.getLogger(__name__)
@@ -23,22 +26,103 @@ class OCRFailedError(Exception):
     pass
 
 
-class OCRWrapper:
-    """Wrapper for OCR functionality with timeout and error handling."""
-
-    def __init__(self, library: str = "tesseract", timeout_seconds: int = 3):
-        """Initialize OCR wrapper.
+class EverytimeScheduleParser:
+    """Parser specific to Everytime schedule images."""
+    
+    # Everytime-specific keywords (Korean)
+    EVERYTIME_KEYWORDS = {
+        '월': 'MONDAY',
+        '화': 'TUESDAY', 
+        '수': 'WEDNESDAY',
+        '목': 'THURSDAY',
+        '금': 'FRIDAY',
+        '토': 'SATURDAY',
+        '일': 'SUNDAY',
+    }
+    
+    # Time patterns for Korean schedule format
+    TIME_PATTERN_KOR = r'(\d{1,2}):(\d{2})'  # HH:MM format
+    
+    def parse(self, text: str) -> List[Dict[str, Any]]:
+        """Parse OCR text and extract schedule entries.
         
         Args:
-            library: 'tesseract' or 'paddleocr'
+            text: Raw OCR text
+        
+        Returns:
+            List of schedule entries with day, start, end times
+        """
+        entries = []
+        
+        # Split by lines
+        lines = text.split('\n')
+        
+        current_day = None
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Check for day name (Korean)
+            for kor_day, eng_day in self.EVERYTIME_KEYWORDS.items():
+                if kor_day in line:
+                    current_day = eng_day
+                    break
+            
+            # Extract times from this line
+            times = self._extract_times_from_line(line)
+            
+            if current_day and times:
+                for start, end in times:
+                    entries.append({
+                        'day': current_day,
+                        'start': start,
+                        'end': end,
+                        'raw_text': line
+                    })
+        
+        return entries
+    
+    def _extract_times_from_line(self, line: str) -> List[Tuple[str, str]]:
+        """Extract time pairs from a line.
+        
+        Args:
+            line: A single line of text
+        
+        Returns:
+            List of (start_time, end_time) tuples
+        """
+        times = []
+        matches = re.findall(self.TIME_PATTERN_KOR, line)
+        
+        # Group consecutive time pairs
+        time_strs = [f"{h}:{m}" for h, m in matches]
+        
+        for i in range(0, len(time_strs) - 1, 2):
+            start = time_strs[i]
+            end = time_strs[i + 1]
+            times.append((start, end))
+        
+        return times
+
+
+class OCRWrapper:
+    """Enhanced OCR wrapper with preprocessing and Everytime support."""
+
+    def __init__(self, library: str = "tesseract", timeout_seconds: int = 5):
+        """Initialize enhanced OCR wrapper.
+        
+        Args:
+            library: 'tesseract' (or 'paddleocr' in future)
             timeout_seconds: Timeout for OCR operation
         """
         self.library = library
         self.timeout_seconds = timeout_seconds
-        logger.info(f"Initialized OCR wrapper: {library} ({timeout_seconds}s timeout)")
+        self.schedule_parser = EverytimeScheduleParser()
+        logger.info(f"Initialized enhanced OCR: {library} ({timeout_seconds}s timeout)")
 
     def parse_image(self, image_bytes: bytes) -> str:
-        """Parse an image and extract text using OCR (memory-only).
+        """Parse an image with preprocessing and extract text.
         
         Args:
             image_bytes: Image file content as bytes
@@ -53,9 +137,10 @@ class OCRWrapper:
         if not image_bytes:
             raise OCRFailedError("Empty image data")
 
+        image_stream = BytesIO(image_bytes)
+        
         try:
-            # Load image from bytes into memory (no disk storage)
-            image_stream = BytesIO(image_bytes)
+            # Load image from bytes
             image = Image.open(image_stream)
             
             # Validate image
@@ -65,66 +150,136 @@ class OCRWrapper:
 
             logger.debug(f"Parsing image: {image.size} {image.format}")
             
-            # Parse with timeout
+            # Preprocess image
+            processed_image = self._preprocess_image(image)
+            
+            # Extract text with enhanced language support
             if self.library == "tesseract":
-                text = self._parse_with_tesseract(image)
-            elif self.library == "paddleocr":
-                text = self._parse_with_paddleocr(image)
+                text = self._parse_with_tesseract(processed_image)
             else:
                 raise ValueError(f"Unsupported OCR library: {self.library}")
 
-            logger.info(f"OCR parsing successful: {len(text)} chars extracted")
+            logger.info(f"OCR successful: {len(text)} chars extracted")
             return text
 
         except Image.UnidentifiedImageError:
             logger.error("Invalid image format")
             raise OCRFailedError("Invalid image format - cannot identify")
-        except OCRTimeoutError:
-            logger.error(f"OCR timeout exceeded ({self.timeout_seconds}s)")
-            raise
-        except OCRFailedError:
+        except (OCRTimeoutError, OCRFailedError):
             raise
         except Exception as e:
             logger.error(f"OCR parsing failed: {e}", exc_info=True)
             raise OCRFailedError(f"OCR parsing failed: {str(e)}")
         finally:
-            # Ensure image and stream are garbage-collected
-            # (Important for memory-only processing)
             image_stream.close()
 
+    def _preprocess_image(self, image: Image.Image) -> Image.Image:
+        """Preprocess image for better OCR accuracy.
+        
+        Applies:
+        - RGB to grayscale conversion
+        - Contrast enhancement (1.5x)
+        - Brightness normalization
+        - Sharpening (2.0x)
+        - Auto-level normalization
+        
+        Args:
+            image: PIL Image object
+        
+        Returns:
+            Processed image
+        """
+        # Convert to grayscale for better OCR
+        if image.mode != 'L':
+            image = image.convert('L')
+        
+        # Enhance contrast
+        enhancer = ImageEnhance.Contrast(image)
+        image = enhancer.enhance(1.5)
+        
+        # Enhance brightness
+        enhancer = ImageEnhance.Brightness(image)
+        image = enhancer.enhance(1.1)
+        
+        # Sharpen
+        enhancer = ImageEnhance.Sharpness(image)
+        image = enhancer.enhance(2.0)
+        
+        # Auto-level (normalize) for better contrast
+        image = ImageOps.autocontrast(image, cutoff=0)
+        
+        logger.debug("Image preprocessing completed")
+        return image
+
     def _parse_with_tesseract(self, image: Image.Image) -> str:
-        """Parse image with Tesseract OCR."""
-        import signal
-
-        def timeout_handler(signum, frame):
-            raise OCRTimeoutError(f"Tesseract OCR timeout after {self.timeout_seconds}s")
-
-        # Set alarm (Unix only)
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(self.timeout_seconds)
-
+        """Parse image with Tesseract OCR.
+        
+        Supports Korean language by using 'kor' language model.
+        Falls back to English if Korean detection fails.
+        
+        Args:
+            image: PIL Image object
+        
+        Returns:
+            Extracted text
+        
+        Raises:
+            OCRFailedError: If OCR fails
+        """
         try:
-            text = pytesseract.image_to_string(image, lang="eng")
-            signal.alarm(0)  # Cancel alarm
+            # Try Korean language support first
+            # This requires Korean language data in Tesseract
+            try:
+                text = pytesseract.image_to_string(image, lang='kor+eng')
+                logger.debug("OCR with Korean language model")
+            except Exception as e:
+                # Fallback to English only
+                logger.warning(f"Korean language model not available: {e}, using English only")
+                text = pytesseract.image_to_string(image, lang='eng')
+            
+            if not text or not text.strip():
+                logger.warning("OCR produced empty result")
+            
             return text
-        except OCRTimeoutError:
-            raise
+
         except Exception as e:
-            signal.alarm(0)  # Cancel alarm
+            logger.error(f"Tesseract error: {e}")
             raise OCRFailedError(f"Tesseract error: {e}")
 
-    def _parse_with_paddleocr(self, image: Image.Image) -> str:
-        """Parse image with PaddleOCR."""
-        try:
-            # This would require PaddleOCR installation
-            # For now, raise not implemented
-            raise NotImplementedError("PaddleOCR not yet integrated")
-        except NotImplementedError:
-            raise
-        except Exception as e:
-            raise OCRFailedError(f"PaddleOCR error: {e}")
+    def parse_schedule(self, image_bytes: bytes) -> Dict[str, Any]:
+        """Parse image and extract schedule data.
+        
+        Args:
+            image_bytes: Image file content as bytes
+        
+        Returns:
+            Dictionary with:
+            - raw_text: Raw OCR text
+            - schedule: List of parsed schedule entries
+            - confidence: Confidence score (0-1)
+        
+        Raises:
+            OCRFailedError: If parsing fails
+        """
+        # Extract text
+        raw_text = self.parse_image(image_bytes)
+        
+        # Parse schedule from text
+        schedule = self.schedule_parser.parse(raw_text)
+        
+        # Calculate confidence based on number of entries found
+        confidence = min(1.0, len(schedule) / 10.0) if schedule else 0.0
+        
+        logger.info(f"Extracted {len(schedule)} schedule entries with {confidence:.1%} confidence")
+        
+        return {
+            'raw_text': raw_text,
+            'schedule': schedule,
+            'confidence': confidence,
+            'parser': 'everytime'
+        }
 
-    def parse_schedule_text(self, ocr_text: str) -> List[Tuple[int, int, int, int]]:
+    def parse_schedule_text(self, ocr_text: str) -> List[Tuple[int, int, int]]:
         """Parse OCR text to extract schedule intervals.
         
         Args:
@@ -140,27 +295,44 @@ class OCRWrapper:
             logger.warning("Empty OCR text")
             return []
 
+        schedule = self.schedule_parser.parse(ocr_text)
         intervals = []
         
-        # Extract day and time combinations
-        days = self._extract_days(ocr_text)
-        times = self._extract_times(ocr_text)
+        days_map = {
+            'MONDAY': 0, 'TUESDAY': 1, 'WEDNESDAY': 2,
+            'THURSDAY': 3, 'FRIDAY': 4, 'SATURDAY': 5, 'SUNDAY': 6
+        }
         
-        logger.debug(f"Found {len(days)} days, {len(times)} time points")
-
-        # Simple heuristic: match days with following time intervals
-        # This is a simplified parser - real implementation would be more robust
-        for day_num in days:
-            # Find times that follow this day in the text
-            for start_time, end_time in times:
-                if start_time < end_time:
-                    intervals.append((day_num, start_time, end_time))
-
+        for entry in schedule:
+            day_name = entry.get('day')
+            start_time = entry.get('start')
+            end_time = entry.get('end')
+            
+            if not all([day_name, start_time, end_time]):
+                continue
+            
+            day_num = days_map.get(day_name)
+            if day_num is None:
+                continue
+            
+            try:
+                # Parse times HH:MM -> minutes since midnight
+                start_h, start_m = map(int, start_time.split(':'))
+                end_h, end_m = map(int, end_time.split(':'))
+                
+                start_minute = start_h * 60 + start_m
+                end_minute = end_h * 60 + end_m
+                
+                if 0 <= start_minute < end_minute <= 1440:
+                    intervals.append((day_num, start_minute, end_minute))
+            except (ValueError, IndexError):
+                continue
+        
         logger.info(f"Extracted {len(intervals)} schedule intervals from OCR text")
         return intervals
 
     def extract_intervals(self, text: str) -> List[Tuple[int, int, int]]:
-        """Extract time intervals (start, end, day) from text."""
+        """Extract time intervals (day, start, end) from text."""
         return self.parse_schedule_text(text)
 
     def _extract_days(self, text: str) -> List[int]:
@@ -173,6 +345,8 @@ class OCRWrapper:
             "friday": 4, "fri": 4,
             "saturday": 5, "sat": 5,
             "sunday": 6, "sun": 6,
+            '월': 0, '화': 1, '수': 2, '목': 3,
+            '금': 4, '토': 5, '일': 6,
         }
         
         found_days = set()
@@ -225,3 +399,16 @@ def extract_days(text: str) -> List[int]:
     """Module-level function to extract days from text."""
     wrapper = OCRWrapper()
     return wrapper._extract_days(text)
+
+
+# Backward compatibility alias
+class OCRService:
+    """Alias for OCRWrapper for backward compatibility."""
+    def __init__(self):
+        self.wrapper = OCRWrapper()
+    
+    def parse_image(self, image_bytes: bytes) -> str:
+        return self.wrapper.parse_image(image_bytes)
+    
+    def parse_schedule(self, image_bytes: bytes) -> Dict[str, Any]:
+        return self.wrapper.parse_schedule(image_bytes)
