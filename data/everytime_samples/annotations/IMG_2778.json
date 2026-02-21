@@ -1,0 +1,110 @@
+{
+  "image_file": "IMG_2778.PNG",
+  "extracted_text": "3:01\n\n202314 2817]\n\nBl AIZHE V +O\n\na\n\ncae sn\na\n\nam\n|\n. Aleta HAL Et\n\nHe\n",
+  "schedule": [
+    {
+      "day": "월",
+      "start": "10:30",
+      "end": "11:30",
+      "class_name": "공동체와세계시민"
+    },
+    {
+      "day": "월",
+      "start": "11:30",
+      "end": "12:30",
+      "class_name": "기초프로젝트Ⅱ(PBL AdventureDesign)"
+    },
+    {
+      "day": "월",
+      "start": "15:30",
+      "end": "17:30",
+      "class_name": "모바일SW프로젝트245107"
+    },
+    {
+      "day": "월",
+      "start": "18:30",
+      "end": "20:10",
+      "class_name": "모바일was팀프로젝트"
+    },
+    {
+      "day": "월",
+      "start": "20:30",
+      "end": "21:30",
+      "class_name": "필라테스"
+    },
+    {
+      "day": "화",
+      "start": "11:30",
+      "end": "12:30",
+      "class_name": "데이타베이스"
+    },
+    {
+      "day": "화",
+      "start": "09:30",
+      "end": "11:30",
+      "class_name": "소프트웨어공학(TIPS)"
+    },
+    {
+      "day": "화",
+      "start": "15:30",
+      "end": "17:30",
+      "class_name": "현대문화와통일사상 /011014"
+    },
+    {
+      "day": "화",
+      "start": "18:00",
+      "end": "21:00",
+      "class_name": "파이썬"
+    },
+    {
+      "day": "수",
+      "start": "12:30",
+      "end": "13:30",
+      "class_name": "상담지도(교수-학생상담)"
+    },
+    {
+      "day": "수",
+      "start": "09:30",
+      "end": "11:30",
+      "class_name": "기초프로젝트Ⅱ(PBL AdventureDesign)"
+    },
+    {
+      "day": "수",
+      "start": "15:30",
+      "end": "17:30",
+      "class_name": "모바일SW프로젝트245107"
+    },
+    {
+      "day": "수",
+      "start": "14:30",
+      "end": "15:40",
+      "class_name": "상담"
+    },
+    {
+      "day": "목",
+      "start": "09:30",
+      "end": "11:30",
+      "class_name": "데이타베이스"
+    },
+    {
+      "day": "목",
+      "start": "11:30",
+      "end": "12:30",
+      "class_name": "소프트웨어공학(TIPS)"
+    },
+    {
+      "day": "목",
+      "start": "15:30",
+      "end": "18:30",
+      "class_name": "컴퓨터 구조(245035)"
+    },
+    {
+      "day": "목",
+      "start": "19:30",
+      "end": "21:10",
+      "class_name": "카오스농구"
+    }
+  ],
+  "difficulty": "medium",
+  "notes": "Manually annotated from HTML schedule"
+}
