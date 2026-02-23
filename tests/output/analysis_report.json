@@ -1,0 +1,378 @@
+[
+  {
+    "test_num": 1,
+    "format_type": "space_format",
+    "input": {
+      "raw_text": "Monday (월)\n10:30 12:00\n10:30 12:00\nTuesday\n14:00 15:30\n14:00 15:30\n15:00 16:30\nWed\n14:00 15:30\nThursday (목)\n14:00 15:30\nFri\n14:30 16:00\n14:30 16:00",
+      "line_count": 14
+    },
+    "output": {
+      "total_slots": 9,
+      "days_covered": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "by_day": {
+        "월": [
+          {
+            "start": "10:30",
+            "end": "12:00",
+            "start_minutes": 630,
+            "end_minutes": 720
+          },
+          {
+            "start": "10:30",
+            "end": "12:00",
+            "start_minutes": 630,
+            "end_minutes": 720
+          }
+        ],
+        "화": [
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          },
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          },
+          {
+            "start": "15:00",
+            "end": "16:30",
+            "start_minutes": 900,
+            "end_minutes": 990
+          }
+        ],
+        "수": [
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          }
+        ],
+        "목": [
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          }
+        ],
+        "금": [
+          {
+            "start": "14:30",
+            "end": "16:00",
+            "start_minutes": 870,
+            "end_minutes": 960
+          },
+          {
+            "start": "14:30",
+            "end": "16:00",
+            "start_minutes": 870,
+            "end_minutes": 960
+          }
+        ],
+        "토": [],
+        "일": []
+      }
+    },
+    "success": true,
+    "success_rate": 9
+  },
+  {
+    "test_num": 2,
+    "format_type": "range_format",
+    "input": {
+      "raw_text": "Monday\n14:30-16:00\nTue\n10:00-11:30\n13:00-14:30\n10:30-12:00\n목\n13:00-14:30\n15:00-16:30\n13:00-14:30\nFriday\n14:30-16:00\n9:00-10:30",
+      "line_count": 13
+    },
+    "output": {
+      "total_slots": 9,
+      "days_covered": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "by_day": {
+        "월": [
+          {
+            "start": "14:30",
+            "end": "16:00",
+            "start_minutes": 870,
+            "end_minutes": 960
+          }
+        ],
+        "화": [
+          {
+            "start": "10:00",
+            "end": "11:30",
+            "start_minutes": 600,
+            "end_minutes": 690
+          },
+          {
+            "start": "13:00",
+            "end": "14:30",
+            "start_minutes": 780,
+            "end_minutes": 870
+          },
+          {
+            "start": "10:30",
+            "end": "12:00",
+            "start_minutes": 630,
+            "end_minutes": 720
+          }
+        ],
+        "수": [],
+        "목": [
+          {
+            "start": "13:00",
+            "end": "14:30",
+            "start_minutes": 780,
+            "end_minutes": 870
+          },
+          {
+            "start": "15:00",
+            "end": "16:30",
+            "start_minutes": 900,
+            "end_minutes": 990
+          },
+          {
+            "start": "13:00",
+            "end": "14:30",
+            "start_minutes": 780,
+            "end_minutes": 870
+          }
+        ],
+        "금": [
+          {
+            "start": "14:30",
+            "end": "16:00",
+            "start_minutes": 870,
+            "end_minutes": 960
+          },
+          {
+            "start": "09:00",
+            "end": "10:30",
+            "start_minutes": 540,
+            "end_minutes": 630
+          }
+        ],
+        "토": [],
+        "일": []
+      }
+    },
+    "success": true,
+    "success_rate": 9
+  },
+  {
+    "test_num": 3,
+    "format_type": "range_format",
+    "input": {
+      "raw_text": "Tuesday (화)\n10:30-12:00\nWednesday\n14:00-15:30\n10:30-12:00\n9:00-10:30\nThursday\n14:30-16:00\n14:00-15:30\nFriday (금)\n10:30-12:00",
+      "line_count": 11
+    },
+    "output": {
+      "total_slots": 7,
+      "days_covered": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "by_day": {
+        "월": [],
+        "화": [
+          {
+            "start": "10:30",
+            "end": "12:00",
+            "start_minutes": 630,
+            "end_minutes": 720
+          }
+        ],
+        "수": [
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          },
+          {
+            "start": "10:30",
+            "end": "12:00",
+            "start_minutes": 630,
+            "end_minutes": 720
+          },
+          {
+            "start": "09:00",
+            "end": "10:30",
+            "start_minutes": 540,
+            "end_minutes": 630
+          }
+        ],
+        "목": [
+          {
+            "start": "14:30",
+            "end": "16:00",
+            "start_minutes": 870,
+            "end_minutes": 960
+          },
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          }
+        ],
+        "금": [
+          {
+            "start": "10:30",
+            "end": "12:00",
+            "start_minutes": 630,
+            "end_minutes": 720
+          }
+        ],
+        "토": [],
+        "일": []
+      }
+    },
+    "success": true,
+    "success_rate": 7
+  },
+  {
+    "test_num": 4,
+    "format_type": "mixed_format",
+    "input": {
+      "raw_text": "월\n10:00~11:30\nBusy 15:00-16:30\n10:30~12:00\nTue\n10:00-11:30\n수\n9:00-10:30\nBusy 10:00-11:30\nThu\n15:00~16:30\n금\n14:00~15:30",
+      "line_count": 13
+    },
+    "output": {
+      "total_slots": 8,
+      "days_covered": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "by_day": {
+        "월": [
+          {
+            "start": "10:00",
+            "end": "11:30",
+            "start_minutes": 600,
+            "end_minutes": 690
+          },
+          {
+            "start": "15:00",
+            "end": "16:30",
+            "start_minutes": 900,
+            "end_minutes": 990
+          },
+          {
+            "start": "10:30",
+            "end": "12:00",
+            "start_minutes": 630,
+            "end_minutes": 720
+          }
+        ],
+        "화": [
+          {
+            "start": "10:00",
+            "end": "11:30",
+            "start_minutes": 600,
+            "end_minutes": 690
+          }
+        ],
+        "수": [
+          {
+            "start": "09:00",
+            "end": "10:30",
+            "start_minutes": 540,
+            "end_minutes": 630
+          },
+          {
+            "start": "10:00",
+            "end": "11:30",
+            "start_minutes": 600,
+            "end_minutes": 690
+          }
+        ],
+        "목": [
+          {
+            "start": "15:00",
+            "end": "16:30",
+            "start_minutes": 900,
+            "end_minutes": 990
+          }
+        ],
+        "금": [
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          }
+        ],
+        "토": [],
+        "일": []
+      }
+    },
+    "success": true,
+    "success_rate": 8
+  },
+  {
+    "test_num": 5,
+    "format_type": "mixed_format",
+    "input": {
+      "raw_text": "Tuesday\n14:00~15:30\nThursday (목)\n14:00-15:30\nBusy 10:30-12:00",
+      "line_count": 5
+    },
+    "output": {
+      "total_slots": 3,
+      "days_covered": [
+        1,
+        3
+      ],
+      "by_day": {
+        "월": [],
+        "화": [
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          }
+        ],
+        "수": [],
+        "목": [
+          {
+            "start": "14:00",
+            "end": "15:30",
+            "start_minutes": 840,
+            "end_minutes": 930
+          },
+          {
+            "start": "10:30",
+            "end": "12:00",
+            "start_minutes": 630,
+            "end_minutes": 720
+          }
+        ],
+        "금": [],
+        "토": [],
+        "일": []
+      }
+    },
+    "success": true,
+    "success_rate": 3
+  }
+]

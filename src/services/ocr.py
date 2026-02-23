@@ -29,8 +29,9 @@ class OCRFailedError(Exception):
 class EverytimeScheduleParser:
     """Parser specific to Everytime schedule images."""
     
-    # Everytime-specific keywords (Korean)
+    # Everytime-specific keywords (Korean + English)
     EVERYTIME_KEYWORDS = {
+        # Korean
         '월': 'MONDAY',
         '화': 'TUESDAY', 
         '수': 'WEDNESDAY',
@@ -38,10 +39,19 @@ class EverytimeScheduleParser:
         '금': 'FRIDAY',
         '토': 'SATURDAY',
         '일': 'SUNDAY',
+        # English (full and abbreviated)
+        'monday': 'MONDAY', 'mon': 'MONDAY',
+        'tuesday': 'TUESDAY', 'tue': 'TUESDAY', 'tues': 'TUESDAY',
+        'wednesday': 'WEDNESDAY', 'wed': 'WEDNESDAY',
+        'thursday': 'THURSDAY', 'thu': 'THURSDAY', 'thurs': 'THURSDAY',
+        'friday': 'FRIDAY', 'fri': 'FRIDAY',
+        'saturday': 'SATURDAY', 'sat': 'SATURDAY',
+        'sunday': 'SUNDAY', 'sun': 'SUNDAY',
     }
     
-    # Time patterns for Korean schedule format
+    # Time patterns
     TIME_PATTERN_KOR = r'(\d{1,2}):(\d{2})'  # HH:MM format
+    TIME_RANGE_PATTERN = r'(\d{1,2}):(\d{2})\s*[-~]\s*(\d{1,2}):(\d{2})'  # HH:MM-HH:MM format
     
     def parse(self, text: str) -> List[Dict[str, Any]]:
         """Parse OCR text and extract schedule entries.
@@ -63,13 +73,17 @@ class EverytimeScheduleParser:
             if not line:
                 continue
             
-            # Check for day name (Korean)
-            for kor_day, eng_day in self.EVERYTIME_KEYWORDS.items():
-                if kor_day in line:
+            # Check for day name (Korean or English)
+            line_lower = line.lower()
+            for day_keyword, eng_day in self.EVERYTIME_KEYWORDS.items():
+                # For Korean characters, check as-is
+                # For English, check lowercase version
+                check_against = line_lower if day_keyword.islower() else line
+                if day_keyword in check_against:
                     current_day = eng_day
                     break
             
-            # Extract times from this line
+            # Extract times from this line (supports both HH:MM-HH:MM and individual times)
             times = self._extract_times_from_line(line)
             
             if current_day and times:
@@ -86,22 +100,36 @@ class EverytimeScheduleParser:
     def _extract_times_from_line(self, line: str) -> List[Tuple[str, str]]:
         """Extract time pairs from a line.
         
+        Supports formats:
+        - HH:MM-HH:MM (e.g., "9:00-10:30")
+        - Individual times (e.g., "9:00 10:30")
+        
         Args:
             line: A single line of text
         
         Returns:
-            List of (start_time, end_time) tuples
+            List of (start_time, end_time) tuples in HH:MM format
         """
         times = []
-        matches = re.findall(self.TIME_PATTERN_KOR, line)
         
-        # Group consecutive time pairs
-        time_strs = [f"{h}:{m}" for h, m in matches]
+        # First, try to match time ranges (HH:MM-HH:MM)
+        range_matches = re.findall(self.TIME_RANGE_PATTERN, line)
+        for match in range_matches:
+            start_h, start_m, end_h, end_m = match
+            start_time = f"{start_h.zfill(2)}:{start_m}"
+            end_time = f"{end_h.zfill(2)}:{end_m}"
+            times.append((start_time, end_time))
         
-        for i in range(0, len(time_strs) - 1, 2):
-            start = time_strs[i]
-            end = time_strs[i + 1]
-            times.append((start, end))
+        # If no range matches found, try individual time extraction
+        if not times:
+            matches = re.findall(self.TIME_PATTERN_KOR, line)
+            time_strs = [f"{h.zfill(2)}:{m}" for h, m in matches]
+            
+            # Group consecutive time pairs
+            for i in range(0, len(time_strs) - 1, 2):
+                start = time_strs[i]
+                end = time_strs[i + 1]
+                times.append((start, end))
         
         return times
 
@@ -328,6 +356,18 @@ class OCRWrapper:
             except (ValueError, IndexError):
                 continue
         
+        # Fallback: If no day-based schedule found, try extracting times from the text
+        # and apply them to all weekdays
+        if not intervals:
+            time_intervals = self._extract_times(ocr_text)
+            if time_intervals:
+                # Apply extracted times to all weekdays (0-6: Monday-Sunday)
+                for day_num in range(7):
+                    for start_min, end_min in time_intervals:
+                        if 0 <= start_min < end_min <= 1440:
+                            intervals.append((day_num, start_min, end_min))
+                logger.debug(f"Fallback: Applied {len(time_intervals)} time intervals to all {len(intervals)} day slots")
+        
         logger.info(f"Extracted {len(intervals)} schedule intervals from OCR text")
         return intervals
 
@@ -359,9 +399,15 @@ class OCRWrapper:
         return sorted(list(found_days))
 
     def _extract_times(self, text: str) -> List[Tuple[int, int]]:
-        """Extract time intervals (start_minute, end_minute) from text."""
-        # Pattern: HH:MM or H:MM (optionally with AM/PM)
-        # Matches: 9:30, 09:00, 14:30, etc.
+        """Extract time intervals as minutes from midnight.
+        
+        Returns list of (start_minute, end_minute) tuples.
+        For example: 14:30 to 15:45 → (870, 945)
+        
+        Note: This function is primarily for internal use.
+        Use parse_schedule_text() for full schedule parsing.
+        """
+        # Pattern: HH:MM or H:MM
         time_pattern = r'(\d{1,2}):(\d{2})'
         matches = re.findall(time_pattern, text)
         

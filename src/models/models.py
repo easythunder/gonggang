@@ -1,6 +1,6 @@
 """SQLAlchemy models for Meet-Match."""
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Boolean, JSON, Enum, UniqueConstraint, Index
@@ -53,18 +53,14 @@ class Group(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
-    deletion_logs: Mapped[List["DeletionLog"]] = relationship(
-        "DeletionLog",
-        back_populates="group",
-        cascade="all, delete-orphan",
-    )
 
     def __repr__(self) -> str:
         return f"<Group {self.id} name={self.name}>"
 
     def is_expired(self) -> bool:
         """Check if group has expired."""
-        return datetime.utcnow() >= self.expires_at
+        now_utc = datetime.now(timezone.utc)
+        return now_utc >= self.expires_at
 
 
 class Submission(Base):
@@ -179,3 +175,34 @@ class FreeTimeResult(Base):
 
     def __repr__(self) -> str:
         return f"<FreeTimeResult {self.id} group={self.group_id} v{self.version}>"
+
+
+class DeletionLog(Base):
+    """Audit log for deletions."""
+
+    __tablename__ = "deletion_logs"
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+    )
+    group_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("groups.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    deleted_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    reason = Column(String(100), nullable=False)  # 'expired', 'manual', 'batch_failure'
+    submission_count = Column(Integer, nullable=True)
+    asset_count = Column(Integer, nullable=True)
+    error_code = Column(String(100), nullable=True)
+    retry_count = Column(Integer, nullable=False, default=0)
+
+    # Relationships
+    group: Mapped[Optional[Group]] = relationship("Group")
+
+    def __repr__(self) -> str:
+        return f"<DeletionLog {self.id} group={self.group_id} reason={self.reason}>"

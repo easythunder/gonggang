@@ -310,16 +310,15 @@ class SubmissionService:
         """
         try:
             interval_dicts = [
-                {
-                    "submission_id": submission_id,
-                    "day_of_week": interval.day_of_week,
-                    "start_minute": interval.start_minute,
-                    "end_minute": interval.end_minute,
-                }
+                (
+                    interval.day_of_week,
+                    interval.start_minute,
+                    interval.end_minute,
+                )
                 for interval in intervals
             ]
 
-            self.interval_repo.create_bulk(interval_dicts)
+            self.interval_repo.create_bulk(submission_id, interval_dicts)
             logger.debug(f"Stored {len(interval_dicts)} intervals for submission {submission_id}")
         except Exception as e:
             logger.error(f"Failed to store intervals: {e}", exc_info=True)

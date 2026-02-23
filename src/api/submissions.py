@@ -206,13 +206,16 @@ async def submit_schedule(
 
         # Create submission in database
         try:
-            submission = _submission_service.create_submission(
+            submission, error_code = _submission_service.create_submission(
                 group_id=group_uuid,
                 nickname=nickname,
                 intervals=intervals,
                 ocr_success=ocr_success,
                 error_reason="OCR parsing failed" if not ocr_success else None,
             )
+            
+            if error_code:
+                raise HTTPException(status_code=500, detail=f"Failed to create submission: {error_code}")
 
             # Update group's last_activity_at (extends expiration)
             _submission_service.update_group_last_activity(group_uuid)

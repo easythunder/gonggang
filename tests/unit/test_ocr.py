@@ -75,15 +75,18 @@ class TestTimeExtraction:
     """Test time extraction from OCR text."""
 
     def test_extract_time_hh_mm_format(self):
-        """Extract times in HH:MM format."""
+        """Extract times in HH:MM format as minutes from midnight."""
         from src.services.ocr import extract_times
         
         text = "Meeting from 14:30 to 15:45"
         times = extract_times(text)
-        assert "14:30" in [f"{h}:{m:02d}" for h, m in times]
+        # Returns (start_minute, end_minute) tuples
+        # 14:30 = 14*60 + 30 = 870, 15:45 = 15*60 + 45 = 945
+        assert len(times) > 0
+        assert (870, 945) in times
 
     def test_extract_multiple_times(self):
-        """Extract multiple time points from text."""
+        """Extract multiple time intervals from text."""
         from src.services.ocr import extract_times
         
         text = """
@@ -91,23 +94,29 @@ class TestTimeExtraction:
         Then: 14:00-15:00 meeting
         """
         times = extract_times(text)
-        assert len(times) >= 4  # At least 4 times: 9, 10:30, 14, 15
+        # Should extract 2 intervals: (540, 630) and (840, 900)
+        assert len(times) >= 2
+        assert (540, 630) in times  # 9:00-10:30
+        assert (840, 900) in times  # 14:00-15:00
 
     def test_time_format_variations(self):
         """Handle various time formats."""
         from src.services.ocr import extract_times
         
         variations = [
-            "9:00",      # Single digit hour
-            "09:00",     # Zero-padded
-            "23:59",     # Late time
-            "00:00",     # Midnight
+            ("9:00-10:30", (540, 630)),      # Single digit hour
+            ("09:00-10:00", (540, 600)),     # Zero-padded
+            ("23:59-00:00", None),           # Invalid range (end < start)
+            ("00:00-01:00", (0, 60)),        # Midnight
         ]
         
-        for time_str in variations:
-            text = f"Meeting at {time_str}"
+        for time_str, expected in variations:
+            text = f"Meeting {time_str}"
             times = extract_times(text)
-            assert len(times) > 0
+            if expected:
+                assert expected in times, f"Expected {expected} in {times} for {time_str}"
+            # At minimum, should not crash
+            assert isinstance(times, list)
 
 
 class TestDayExtraction:
