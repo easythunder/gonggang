@@ -282,7 +282,7 @@ class SubmissionService:
             return False
 
     def delete_submission(self, submission_id: UUID) -> bool:
-        """Delete a submission and its intervals.
+        """Delete a submission and its intervals, then recalculate free time.
         
         Args:
             submission_id: UUID of submission to delete
@@ -291,10 +291,24 @@ class SubmissionService:
             True if successful
         """
         try:
-            # Delete intervals cascade will handle this automatically
+            # Get group_id before deletion
+            submission = self.submission_repo.get_by_id(submission_id)
+            if not submission:
+                logger.warning(f"Submission {submission_id} not found")
+                return False
+            
+            group_id = submission.group_id
+            
+            # Delete submission and intervals (cascade will handle intervals)
             self.submission_repo.delete(submission_id)
             self.session.commit()
-            logger.info(f"Deleted submission {submission_id}")
+            logger.info(f"Deleted submission {submission_id} from group {group_id}")
+            
+            # Recalculate free time after participant removal
+            calc_success = self.calculation_service.recalculate_on_deletion(group_id)
+            if not calc_success:
+                logger.warning(f"Recalculation failed after deleting submission {submission_id}")
+            
             return True
         except Exception as e:
             logger.error(f"Failed to delete submission {submission_id}: {e}", exc_info=True)
