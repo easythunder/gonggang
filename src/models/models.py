@@ -161,7 +161,9 @@ class FreeTimeResult(Base):
     )
     version = Column(Integer, nullable=False, default=1)
     availability_by_day = Column(JSON, nullable=True)  # JSONB: grid structure
-    free_time_intervals = Column(JSON, nullable=True)  # JSONB: candidate list
+    free_time_intervals = Column(JSON, nullable=True)  # JSONB: 기본 자유시간 (≥10분)
+    free_time_intervals_30min = Column(JSON, nullable=True)  # JSONB: 30분 이상 자유시간
+    free_time_intervals_60min = Column(JSON, nullable=True)  # JSONB: 60분 이상 자유시간
     computed_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     status = Column(
         Enum(SubmissionStatus),

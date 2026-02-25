@@ -59,8 +59,10 @@ CREATE TABLE group_free_time_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     group_id UUID NOT NULL UNIQUE REFERENCES groups(id) ON DELETE CASCADE,
     version INTEGER NOT NULL DEFAULT 1,
-    availability_by_day JSONB,  -- Grid structure
-    free_time_intervals JSONB,  -- Candidate list
+    availability_by_day JSONB,              -- Grid structure
+    free_time_intervals JSONB,              -- 기본: ≥10분 자유시간
+    free_time_intervals_30min JSONB,        -- ≥30분 자유시간
+    free_time_intervals_60min JSONB,        -- ≥60분 자유시간
     computed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     status submission_status NOT NULL DEFAULT 'pending',
     error_code VARCHAR(100)

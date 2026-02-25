@@ -64,7 +64,7 @@ class FreeTimeResponse(BaseModel):
     Includes:
     - Group information
     - Participant list
-    - Free-time slots array
+    - Free-time slots array (3 versions by minimum duration)
     - Availability grid JSONB
     - Computation and expiration timestamps
     """
@@ -77,7 +77,15 @@ class FreeTimeResponse(BaseModel):
     )
     free_time: List[FreeTimeSlot] = Field(
         default_factory=list,
-        description="Array of common free-time slots"
+        description="Array of free-time slots (≥10 minutes minimum)"
+    )
+    free_time_30min: List[FreeTimeSlot] = Field(
+        default_factory=list,
+        description="Array of free-time slots (≥30 minutes minimum)"
+    )
+    free_time_60min: List[FreeTimeSlot] = Field(
+        default_factory=list,
+        description="Array of free-time slots (≥60 minutes minimum)"
     )
     availability_by_day: Optional[Dict[str, List[Dict[str, Any]]]] = Field(
         default_factory=dict,
@@ -98,6 +106,7 @@ class FreeTimeResponse(BaseModel):
     version: int = Field(
         default=0,
         description="Calculation result version (incremented on recalculation)"
+    )
     )
 
     class Config:
