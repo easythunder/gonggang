@@ -521,51 +521,95 @@
                     <div style="font-size: 0.8em; opacity: 0.9;">기존 그룹에 참여하세요</div>
                 </button>
             </div>
+
+            <div style="margin-top: 40px; padding: 20px; background: #f0f4ff; border-radius: 12px; border-left: 4px solid #667eea;">
+                <p style="color: #667eea; font-weight: bold; margin-bottom: 10px;">🧪 테스트용 샘플 그룹 ID:</p>
+                <p style="font-family: monospace; font-size: 1.1em; color: #333; word-break: break-all;" id="sampleGroupDisplay">로딩 중...</p>
+                <button class="copy-btn" onclick="app.copySampleGroupId()" style="margin-top: 10px;">샘플 ID 복사</button>
+            </div>
         </div>
 
         <!-- Create Group Screen -->
         <div id="createGroupScreen" class="screen">
             <div class="group-setup">
-                <h2>새 그룹 만들기</h2>
                 
-                <div class="form-group">
-                    <label>그룹 ID (자동 생성됨)</label>
-                    <div class="group-id-display">
+                <!-- 1단계: 그룹 기본 정보 입력 -->
+                <div id="createFormSection">
+                    <h2>새 그룹 만들기</h2>
+                    
+                    <div class="form-group">
+                        <label>그룹 이름</label>
+                        <input type="text" id="createGroupNameInput" placeholder="그룹 이름을 입력해주세요" maxlength="100">
+                        <div class="form-hint">언제든 수정 가능합니다</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>당신의 이름/별명</label>
+                        <input type="text" id="createNickname" placeholder="참여자 이름을 입력해주세요" maxlength="50">
+                        <div class="form-hint">다른 참여자들이 볼 수 있는 이름입니다</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>시간 단위 선택</label>
+                        <select id="displayUnit">
+                            <option value="30">30분 단위</option>
+                            <option value="10">10분 단위</option>
+                            <option value="15">15분 단위</option>
+                            <option value="60">1시간 단위</option>
+                        </select>
+                        <div class="form-hint">더 작은 단위일수록 더 정밀한 시간 매칭이 가능합니다</div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="app.goToWelcome()">뒤로가기</button>
+                        <button class="btn-primary" id="createSubmitBtn" onclick="app.submitCreateGroup()">그룹 생성하기</button>
+                    </div>
+                </div>
+
+                <!-- 2단계: 그룹 생성 확인 -->
+                <div id="createConfirmSection" style="display: none;">
+                    <h2>✅ 그룹이 생성되었습니다!</h2>
+                    
+                    <div class="group-id-display" style="margin: 30px 0;">
                         <div class="group-id-label">생성된 그룹 ID</div>
-                        <div class="group-id-value" id="createGroupId">계산 중...</div>
-                        <button class="copy-btn" onclick="app.copyGroupId('createGroupId')">복사</button>
+                        <div class="group-id-value" id="createdGroupId">로딩 중...</div>
+                        <input type="hidden" id="createdGroupIdCopy">
+                        <button class="copy-btn" onclick="app.copyCreatedGroupId()">그룹 ID 복사</button>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>💡 팁:</strong> 이 그룹 ID를 다른 사람들에게 공유하면 같은 그룹에 참여할 수 있습니다.
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="app.goToWelcome()">홈으로</button>
+                        <button class="btn-primary" onclick="app.proceedToScheduleUpload()">시간표 업로드하기</button>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>시간 단위 선택</label>
-                    <select id="displayUnit" onchange="app.updateGroupId()">
-                        <option value="30">30분 단위</option>
-                        <option value="10">10분 단위</option>
-                        <option value="15">15분 단위</option>
-                        <option value="60">1시간 단위</option>
-                    </select>
-                    <div class="form-hint">더 작은 단위일수록 더 정밀한 시간 매칭이 가능합니다</div>
-                </div>
-
-                <div class="form-group">
-                    <label>당신의 시간표 이미지</label>
-                    <div class="schedule-upload" id="scheduleUpload" onclick="document.getElementById('scheduleFile').click()">
-                        <div class="upload-icon">📅</div>
-                        <div>클릭하여 이미지 선택 또는 드래그 앤 드롭</div>
-                        <div class="form-hint">PNG, JPG 형식 (800x600px 이상 권장)</div>
-                        <input type="file" id="scheduleFile" accept="image/*" style="display: none;" onchange="app.handleScheduleUpload(event, 'createFlow')">
+                <!-- 3단계: 시간표 업로드 -->
+                <div id="createScheduleSection" style="display: none;">
+                    <h2>시간표 업로드</h2>
+                    
+                    <div class="form-group">
+                        <label>당신의 시간표 이미지</label>
+                        <div class="schedule-upload" id="createScheduleUploadBox" onclick="document.getElementById('createScheduleFile').click()">
+                            <div class="upload-icon">📅</div>
+                            <div>클릭하여 이미지 선택 또는 드래그 앤 드롭</div>
+                            <div class="form-hint">PNG, JPG 형식 (800x600px 이상 권장)</div>
+                            <input type="file" id="createScheduleFile" accept="image/*" style="display: none;" onchange="app.handleScheduleUpload(event, 'create')">
+                        </div>
+                        <div class="schedule-preview" id="createSchedulePreview"></div>
                     </div>
-                    <div class="schedule-preview" id="createSchedulePreview"></div>
-                </div>
 
-                <div class="info-box">
-                    <strong>💡 팁:</strong> 밝고 선명한 이미지를 업로드하면 정확도가 높아집니다.
-                </div>
+                    <div class="info-box">
+                        <strong>💡 팁:</strong> 밝고 선명한 이미지를 업로드하면 정확도가 높아집니다.
+                    </div>
 
-                <div class="button-group">
-                    <button class="btn-secondary" onclick="app.goToWelcome()">뒤로가기</button>
-                    <button class="btn-primary" id="createSubmitBtn" onclick="app.submitCreateGroup()" disabled>그룹 생성 및 참여</button>
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="app.goToWelcome()">홈으로</button>
+                        <button class="btn-primary" onclick="app.submitCreateGroupWithSchedule()" disabled>참여 완료</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -585,19 +629,25 @@
                 <div id="joinGroupSuccess" class="success" style="display: none;"></div>
 
                 <div class="form-group" id="joinGroupFormGroup" style="display: none;">
+                    <label>당신의 이름/별명</label>
+                    <input type="text" id="joinNickname" placeholder="참여자 이름을 입력해주세요" maxlength="50" oninput="app.checkJoinForm()">
+                    <div class="form-hint">다른 참여자들이 볼 수 있는 이름입니다</div>
+                </div>
+
+                <div class="form-group" id="joinScheduleFormGroup" style="display: none;">
                     <label>당신의 시간표 이미지</label>
-                    <div class="schedule-upload" onclick="document.getElementById('joinScheduleFile').click()">
+                    <div class="schedule-upload" id="joinScheduleUploadBox" onclick="document.getElementById('joinScheduleFile').click()">
                         <div class="upload-icon">📅</div>
                         <div>클릭하여 이미지 선택 또는 드래그 앤 드롭</div>
                         <div class="form-hint">PNG, JPG 형식 (800x600px 이상 권장)</div>
-                        <input type="file" id="joinScheduleFile" accept="image/*" style="display: none;" onchange="app.handleScheduleUpload(event, 'joinFlow')">
+                        <input type="file" id="joinScheduleFile" accept="image/*" style="display: none;" onchange="app.handleScheduleUpload(event, 'join')">
                     </div>
                     <div class="schedule-preview" id="joinSchedulePreview"></div>
                 </div>
 
                 <div class="button-group">
                     <button class="btn-secondary" onclick="app.goToWelcome()">뒤로가기</button>
-                    <button class="btn-primary" id="joinSubmitBtn" onclick="app.submitJoinGroup()" style="display: none;">참여 완료</button>
+                    <button class="btn-primary" id="joinSubmitBtn" onclick="app.submitJoinGroup()" style="display: none;" disabled>참여 완료</button>
                 </div>
             </div>
         </div>
@@ -620,12 +670,74 @@
 
     <script>
         const API_BASE = window.location.origin;
+        
+        // 랜덤 닉네임 생성
+        const RANDOM_NAMES = [
+            '🎵 음악인', '🎨 예술가', '📚 책벌레', '🏃 뛰는여자', '🎮 게이머',
+            '🌟 별명인', '🍕 피자러', '☕ 카페러', '🎭 배우', '🚀 개발자',
+            '🌈 무지개', '🐱 고양이', '🐶 강아지', '⚡ 번개', '🌸 꽃',
+            '💫 별', '🎪 서커스', '🎸 밴드맨', '🏖️ 해변러', '🎯 목표달성',
+            '🔥 열정', '💎 보석', '🎲 주사위', '🌙 달', '☀️ 해'
+        ];
+
+        const RANDOM_GROUP_NAMES = [
+            'Team 🚀', 'Group ⭐', 'Squad 💪', 'Crew 🎯', 'Band 🎵',
+            'Party 🎉', 'Club 🎪', 'Gang 💎', 'Tribe 🌟', 'Posse 🔥'
+        ];
+
+        function getRandomName() {
+            return RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+        }
+
+        function getRandomGroupName() {
+            return RANDOM_GROUP_NAMES[Math.floor(Math.random() * RANDOM_GROUP_NAMES.length)];
+        }
+
         const app = {
             currentFlow: null,
             groupId: null,
+            groupName: null,
             scheduleFile: null,
+            sampleGroupId: null,
 
-            // 화면 전환
+            // ========== 초기화 ==========
+            async init() {
+                await this.initSampleGroup();
+                this.showScreen('welcomeScreen');
+            },
+
+            async initSampleGroup() {
+                try {
+                    const displayUnit = 30;
+                    const createRes = await fetch(`${API_BASE}/groups`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ display_unit_minutes: displayUnit })
+                    });
+
+                    if (createRes.ok) {
+                        const data = await createRes.json();
+                        this.sampleGroupId = data.data.group_id;
+                        const display = document.getElementById('sampleGroupDisplay');
+                        if (display) {
+                            display.textContent = this.sampleGroupId;
+                        }
+                    }
+                } catch (error) {
+                    console.error('샘플 그룹 생성 실패:', error);
+                    document.getElementById('sampleGroupDisplay').textContent = '(로딩 실패)';
+                }
+            },
+
+            copySampleGroupId() {
+                if (this.sampleGroupId) {
+                    navigator.clipboard.writeText(this.sampleGroupId).then(() => {
+                        alert('샘플 그룹 ID가 복사되었습니다!\n\n' + this.sampleGroupId);
+                    });
+                }
+            },
+
+            // ========== 화면 전환 ==========
             showScreen(screenId) {
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
                 document.getElementById(screenId).classList.add('active');
@@ -634,153 +746,123 @@
 
             goToWelcome() {
                 this.currentFlow = null;
+                this.groupId = null;
+                this.groupName = null;
+                this.scheduleFile = null;
                 this.showScreen('welcomeScreen');
             },
 
             goToCreateGroup() {
                 this.currentFlow = 'create';
-                this.updateGroupId();
+                this.groupId = null;
+                this.groupName = getRandomGroupName();
+                this.scheduleFile = null;
+                
+                document.getElementById('createGroupNameInput').value = this.groupName;
+                document.getElementById('createNickname').value = '';
+                document.getElementById('displayUnit').value = '30';
+                document.getElementById('createSchedulePreview').innerHTML = '';
+                document.getElementById('createSubmitBtn').disabled = false;
+                document.getElementById('createSubmitBtn').textContent = '그룹 생성하기';
+                document.getElementById('createFormSection').style.display = 'block';
+                document.getElementById('createConfirmSection').style.display = 'none';
+                document.getElementById('createScheduleSection').style.display = 'none';
                 this.showScreen('createGroupScreen');
             },
 
             goToJoinGroup() {
                 this.currentFlow = 'join';
+                this.groupId = null;
+                this.scheduleFile = null;
+                
+                const randomName = getRandomName();
                 document.getElementById('joinGroupId').value = '';
+                document.getElementById('joinNickname').value = randomName;
+                document.getElementById('joinSchedulePreview').innerHTML = '';
                 document.getElementById('joinGroupError').style.display = 'none';
                 document.getElementById('joinGroupSuccess').style.display = 'none';
                 document.getElementById('joinGroupFormGroup').style.display = 'none';
+                document.getElementById('joinScheduleFormGroup').style.display = 'none';
+                document.getElementById('joinScheduleUploadBox').style.display = 'block';
+                document.getElementById('joinSubmitBtn').style.display = 'none';
+                document.getElementById('joinSubmitBtn').disabled = true;
                 this.showScreen('joinGroupScreen');
             },
 
-            // 그룹 ID 생성 (UUID v4)
-            generateGroupId() {
-                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function() {
-                    const r = Math.random() * 16 | 0;
-                    const v = this.charAt(0) === 'x' ? r : (r & 0x3 | 0x8);
-                    return v.toString(16);
-                });
+            // ========== 그룹 생성 프로세스 ==========
+            async submitCreateGroup() {
+                const groupNameInput = document.getElementById('createGroupNameInput').value.trim();
+                const nickname = document.getElementById('createNickname').value.trim();
+                
+                if (!groupNameInput) {
+                    alert('그룹 이름을 입력해주세요');
+                    return;
+                }
+                if (!nickname) {
+                    alert('이름/별명을 입력해주세요');
+                    return;
+                }
+
+                const btn = document.getElementById('createSubmitBtn');
+                btn.disabled = true;
+                btn.textContent = '그룹 생성 중...';
+
+                try {
+                    // 그룹 생성 API 호출
+                    const displayUnit = parseInt(document.getElementById('displayUnit').value);
+                    const createRes = await fetch(`${API_BASE}/groups`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            group_name: groupNameInput,
+                            display_unit_minutes: displayUnit 
+                        })
+                    });
+
+                    if (!createRes.ok) throw new Error('그룹 생성 실패');
+                    const groupData = await createRes.json();
+                    this.groupId = groupData.data.group_id;
+                    this.groupName = groupNameInput;
+                    this.currentNickname = nickname;
+                    this.displayUnit = displayUnit;
+
+                    // 성공 메시지 및 화면 전환
+                    document.getElementById('createFormSection').style.display = 'none';
+                    document.getElementById('createConfirmSection').style.display = 'block';
+                    document.getElementById('createdGroupId').textContent = this.groupId;
+                    document.getElementById('createdGroupIdCopy').value = this.groupId;
+                    
+                } catch (error) {
+                    alert('오류: ' + error.message);
+                    btn.disabled = false;
+                    btn.textContent = '그룹 생성하기';
+                }
             },
 
-            updateGroupId() {
-                this.groupId = this.generateGroupId();
-                document.getElementById('createGroupId').textContent = this.groupId;
-            },
-
-            copyGroupId(elementId) {
-                const text = document.getElementById(elementId).textContent;
-                navigator.clipboard.writeText(text).then(() => {
+            copyCreatedGroupId() {
+                const groupId = document.getElementById('createdGroupIdCopy').value;
+                navigator.clipboard.writeText(groupId).then(() => {
                     const btn = event.target;
                     btn.textContent = '복사됨!';
                     btn.classList.add('copied');
                     setTimeout(() => {
-                        btn.textContent = '복사';
+                        btn.textContent = '그룹 ID 복사';
                         btn.classList.remove('copied');
                     }, 2000);
                 });
             },
 
-            // 파일 업로드
-            handleScheduleUpload(e, flow) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    this.scheduleFile = file;
-                    const previewId = flow === 'create' ? 'createSchedulePreview' : 'joinSchedulePreview';
-                    const submitBtn = flow === 'create' ? 'createSubmitBtn' : 'joinSubmitBtn';
-
-                    const preview = document.getElementById(previewId);
-                    preview.innerHTML = `
-                        <div style="text-align: center;">
-                            <img src="${event.target.result}" class="preview-image" alt="Preview">
-                            <p style="color: #999; margin-top: 10px;">✅ 이미지가 선택되었습니다</p>
-                        </div>
-                    `;
-
-                    if (submitBtn) {
-                        document.getElementById(submitBtn).disabled = false;
-                    }
-                };
-                reader.readAsDataURL(file);
+            proceedToScheduleUpload() {
+                // 생성된 그룹의 시간표 입력 화면으로 이동
+                document.getElementById('createFormSection').style.display = 'none';
+                document.getElementById('createConfirmSection').style.display = 'none';
+                document.getElementById('createScheduleSection').style.display = 'block';
+                document.getElementById('createScheduleUploadBox').style.display = 'block';
+                document.getElementById('createSchedulePreview').innerHTML = '';
+                this.scheduleFile = null;
             },
 
-            // 그룹 생성
-            async submitCreateGroup() {
-                if (!this.scheduleFile) {
-                    alert('이미지를 선택해주세요');
-                    return;
-                }
-
-                this.showScreen('resultsScreen');
-                const resultsContent = document.getElementById('resultsContent');
-
-                try {
-                    // 1. 그룹 생성
-                    const displayUnit = parseInt(document.getElementById('displayUnit').value);
-                    const createRes = await fetch(`${API_BASE}/groups`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ display_unit_minutes: displayUnit })
-                    });
-
-                    if (!createRes.ok) throw new Error('그룹 생성 실패');
-                    const groupData = await createRes.json();
-                    const actualGroupId = groupData.data.group_id;
-
-                    // 2. 이미지 제출
-                    const formData = new FormData();
-                    formData.append('file', this.scheduleFile);
-
-                    const submitRes = await fetch(`${API_BASE}/groups/${actualGroupId}/submissions`, {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (!submitRes.ok) throw new Error('이미지 제출 실패');
-
-                    // 3. 결과 표시
-                    this.showResults(actualGroupId, groupData);
-
-                } catch (error) {
-                    resultsContent.innerHTML = `
-                        <div class="error">
-                            오류가 발생했습니다: ${error.message}
-                        </div>
-                    `;
-                }
-            },
-
-            // 그룹 참여 검증
-            async validateJoinGroup() {
-                const groupId = document.getElementById('joinGroupId').value.trim();
-                if (!groupId) return;
-
-                try {
-                    const res = await fetch(`${API_BASE}/groups/${groupId}`);
-                    const errorDiv = document.getElementById('joinGroupError');
-                    const successDiv = document.getElementById('joinGroupSuccess');
-                    const formGroup = document.getElementById('joinGroupFormGroup');
-
-                    if (res.ok) {
-                        errorDiv.style.display = 'none';
-                        successDiv.style.display = 'block';
-                        successDiv.innerHTML = '✅ 유효한 그룹입니다. 시간표를 업로드하세요.';
-                        formGroup.style.display = 'block';
-                    } else {
-                        errorDiv.style.display = 'block';
-                        errorDiv.innerHTML = '❌ 유효하지 않은 그룹 ID입니다.';
-                        successDiv.style.display = 'none';
-                        formGroup.style.display = 'none';
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                }
-            },
-
-            // 그룹 참여
-            async submitJoinGroup() {
-                const groupId = document.getElementById('joinGroupId').value.trim();
+            async submitCreateGroupWithSchedule() {
                 if (!this.scheduleFile) {
                     alert('이미지를 선택해주세요');
                     return;
@@ -792,63 +874,267 @@
                 try {
                     // 이미지 제출
                     const formData = new FormData();
-                    formData.append('file', this.scheduleFile);
+                    formData.append('group_id', this.groupId);
+                    formData.append('nickname', this.currentNickname);
+                    formData.append('image', this.scheduleFile);
 
-                    const res = await fetch(`${API_BASE}/groups/${groupId}/submissions`, {
+                    const submitRes = await fetch(`${API_BASE}/api/submissions`, {
                         method: 'POST',
                         body: formData
                     });
 
-                    if (!res.ok) throw new Error('이미지 제출 실패');
+                    if (!submitRes.ok) {
+                        const errorData = await submitRes.json();
+                        const errorMessage = errorData.detail || '이미지 제출 실패';
+                        throw new Error(errorMessage);
+                    }
 
-                    // 결과 표시
-                    const groupRes = await fetch(`${API_BASE}/groups/${groupId}`);
+                    // 제출 후 그룹 정보 다시 조회
+                    const groupRes = await fetch(`${API_BASE}/groups/${this.groupId}`);
+                    if (!groupRes.ok) throw new Error('그룹 정보 조회 실패');
                     const groupData = await groupRes.json();
-                    this.showResults(groupId, groupData);
+
+                    // 결과 표시 (GET /groups/{id}/free-time으로 모든 필요한 데이터 조회)
+                    this.showResults(this.groupId);
 
                 } catch (error) {
                     resultsContent.innerHTML = `
                         <div class="error">
-                            오류가 발생했습니다: ${error.message}
+                            <h3>⚠️ 제출 실패</h3>
+                            <p>${error.message}</p>
+                            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                                다른 닉네임으로 시도하려면 처음부터 다시 시작해주세요.
+                            </p>
+                            <button class="btn-primary" onclick="app.goToWelcome()" style="margin-top: 10px;">처음으로</button>
                         </div>
                     `;
                 }
             },
 
-            // 결과 표시
-            async showResults(groupId, groupData) {
+            // ========== 그룹 참여 프로세스 ==========
+            async validateJoinGroup() {
+                const groupId = document.getElementById('joinGroupId').value.trim();
+                if (!groupId) return;
+
                 try {
+                    const res = await fetch(`${API_BASE}/groups/${groupId}`);
+                    const errorDiv = document.getElementById('joinGroupError');
+                    const successDiv = document.getElementById('joinGroupSuccess');
+                    const formGroup = document.getElementById('joinGroupFormGroup');
+                    const scheduleFormGroup = document.getElementById('joinScheduleFormGroup');
+                    const submitBtn = document.getElementById('joinSubmitBtn');
+
+                    if (res.ok) {
+                        this.groupId = groupId;
+                        errorDiv.style.display = 'none';
+                        successDiv.style.display = 'block';
+                        successDiv.innerHTML = '✅ 유효한 그룹입니다. 정보를 입력하세요.';
+                        formGroup.style.display = 'block';
+                        scheduleFormGroup.style.display = 'block';
+                        submitBtn.style.display = 'block';
+                        this.checkJoinForm();
+                    } else {
+                        this.groupId = null;
+                        errorDiv.style.display = 'block';
+                        errorDiv.innerHTML = '❌ 유효하지 않은 그룹 ID입니다.';
+                        successDiv.style.display = 'none';
+                        formGroup.style.display = 'none';
+                        scheduleFormGroup.style.display = 'none';
+                        submitBtn.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            },
+
+            async submitJoinGroup() {
+                const nickname = document.getElementById('joinNickname').value.trim();
+                
+                if (!nickname) {
+                    alert('이름/별명을 입력해주세요');
+                    return;
+                }
+                if (!this.scheduleFile) {
+                    alert('이미지를 선택해주세요');
+                    return;
+                }
+
+                this.showScreen('resultsScreen');
+                const resultsContent = document.getElementById('resultsContent');
+
+                try {
+                    // 이미지 제출
+                    const formData = new FormData();
+                    formData.append('group_id', this.groupId);
+                    formData.append('nickname', nickname);
+                    formData.append('image', this.scheduleFile);
+
+                    const res = await fetch(`${API_BASE}/api/submissions`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!res.ok) {
+                        const errorData = await res.json();
+                        const errorMessage = errorData.detail || '이미지 제출 실패';
+                        throw new Error(errorMessage);
+                    }
+
+                    // 결과 표시 (GET /groups/{id}/free-time으로 모든 필요한 데이터 조회)
+                    this.showResults(this.groupId);
+
+                } catch (error) {
+                    resultsContent.innerHTML = `
+                        <div class="error">
+                            <h3>⚠️ 제출 실패</h3>
+                            <p>${error.message}</p>
+                            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                                다른 닉네임으로 시도해주세요.
+                            </p>
+                            <button class="btn-primary" onclick="app.goToWelcome()" style="margin-top: 10px;">처음으로</button>
+                        </div>
+                    `;
+                }
+            },
+
+            // ========== 파일 업로드 ==========
+            handleScheduleUpload(e, flow) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    this.scheduleFile = file;
+                    const previewId = flow === 'create' ? 'createSchedulePreview' : 'joinSchedulePreview';
+                    const uploadBoxId = flow === 'create' ? 'createScheduleUploadBox' : 'joinScheduleUploadBox';
+
+                    const preview = document.getElementById(previewId);
+                    preview.innerHTML = `
+                        <div style="text-align: center;">
+                            <img src="${event.target.result}" class="preview-image" alt="Preview">
+                            <p style="color: #4caf50; margin-top: 10px; font-weight: bold;">✅ 이미지가 선택되었습니다</p>
+                        </div>
+                    `;
+
+                    // 업로드 박스 숨기기
+                    document.getElementById(uploadBoxId).style.display = 'none';
+
+                    // 현재 흐름에 맞게 폼 체크
+                    if (flow === 'create') {
+                        this.checkCreateScheduleForm();
+                    } else {
+                        this.checkJoinForm();
+                    }
+                };
+                reader.readAsDataURL(file);
+            },
+
+            // ========== 폼 검증 ==========
+            checkCreateScheduleForm() {
+                const hasFile = this.scheduleFile !== null;
+                const btn = document.querySelector('#createScheduleSection .btn-primary');
+                if (btn) btn.disabled = !hasFile;
+            },
+
+            checkJoinForm() {
+                const nickname = document.getElementById('joinNickname').value.trim();
+                const hasFile = this.scheduleFile !== null;
+                const submitBtn = document.getElementById('joinSubmitBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = !(nickname && hasFile);
+                }
+            },
+
+            // ========== 결과 표시 ==========
+            async showResults(groupId) {
+                try {
+                    // GET /groups/{id}/free-time: 공동 빈시간 조회
+                    // 응답 구조: { group_id, group_name, participant_count, participants, free_time, ... }
                     const res = await fetch(`${API_BASE}/groups/${groupId}/free-time`);
-                    if (!res.ok) throw new Error('결과 로드 실패');
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        console.error('Free-time API error:', errorText);
+                        throw new Error('결과 로드 실패');
+                    }
 
                     const data = await res.json();
                     const resultsContent = document.getElementById('resultsContent');
+                    const freeTimeData = data.free_time || [];
+                    const participants = data.participants || [];
 
-                    let html = this.renderGroupInfo(data.data);
-                    html += `<div class="section">
-                        <h2>🏆 추천 시간</h2>
-                        <div class="candidates">
-                            ${this.renderCandidates(data.data.free_time || [])}
-                        </div>
-                    </div>`;
+                    let html = this.renderGroupInfo(data);
+                    
+                    // 참여자 목록 추가
+                    if (participants.length > 0) {
+                        html += `<div class="section">
+                            <h2>👥 참여자 목록</h2>
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                                ${participants.map((p, idx) => {
+                                    const submittedAt = new Date(p.submitted_at).toLocaleString('ko-KR');
+                                    return `<div style="padding: 10px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                                        <span><strong>${idx + 1}. ${p.nickname}</strong></span>
+                                        <span style="font-size: 0.85em; color: #999;">${submittedAt}</span>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        </div>`;
+                    }
+
+                    // 공통 자유시간 섹션
+                    if (data.participant_count > 1 && freeTimeData.length > 0) {
+                        html += `<div class="section">
+                            <h2>🏆 공통 자유시간 (${data.participant_count}명 모두 가능)</h2>
+                            <div class="candidates">
+                                ${this.renderCandidates(freeTimeData)}
+                            </div>
+                        </div>`;
+                    } else if (data.participant_count === 1) {
+                        html += `<div class="section">
+                            <h2>📊 공동 빈시간</h2>
+                            <div class="empty-state">
+                                <div class="empty-state-icon">👥</div>
+                                <p><strong>현재 참여자: 1명</strong></p>
+                                <p style="margin-top: 10px; color: #666;">다른 사람들이 시간표를 입력하면 공통 자유시간이 계산됩니다.</p>
+                            </div>
+                        </div>`;
+                    } else {
+                        html += `<div class="section">
+                            <h2>📊 공동 빈시간</h2>
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <p>공통 빈시간이 없습니다</p>
+                                <p style="font-size: 0.9em; color: #999; margin-top: 10px;">모든 참여자의 가능한 시간이 겹치지 않습니다.</p>
+                            </div>
+                        </div>`;
+                    }
 
                     resultsContent.innerHTML = html;
                 } catch (error) {
                     console.error('Error:', error);
+                    document.getElementById('resultsContent').innerHTML = `
+                        <div class="error">
+                            결과를 로드하는 중 오류가 발생했습니다: ${error.message}
+                        </div>
+                    `;
                 }
             },
 
             renderGroupInfo(data) {
                 const groupName = data.group_name || 'N/A';
                 const participantCount = data.participant_count || 0;
+                const expiresAt = data.expires_at ? new Date(data.expires_at).toLocaleString('ko-KR') : '정보 없음';
 
                 return `
                     <div class="group-info">
-                        <p class="group-name">그룹: ${groupName}</p>
+                        <p class="group-name">📌 그룹: ${groupName}</p>
                         <div class="stats">
                             <div class="stat-card">
-                                <h3>참여자</h3>
+                                <h3>👥 참여자</h3>
                                 <div class="value">${participantCount}</div>
+                            </div>
+                            <div class="stat-card">
+                                <h3>⏰ 만료시간</h3>
+                                <div class="value" style="font-size: 0.8em;">${expiresAt}</div>
                             </div>
                         </div>
                     </div>
@@ -870,12 +1156,18 @@
                     'SUNDAY': '일요일'
                 };
 
-                return candidates.slice(0, 5).map((candidate, idx) => {
-                    const startTime = candidate.start ? candidate.start.substring(0, 5) : '';
-                    const endTime = candidate.end ? candidate.end.substring(0, 5) : '';
+                const minutesToTime = (minutes) => {
+                    const hours = Math.floor(minutes / 60);
+                    const mins = minutes % 60;
+                    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+                };
+
+                return candidates.slice(0, 10).map((candidate, idx) => {
+                    const startTime = minutesToTime(candidate.start_minute);
+                    const endTime = minutesToTime(candidate.end_minute);
                     const duration = candidate.duration_minutes || 0;
                     const day = DAYS_FULL[candidate.day] || candidate.day;
-                    const overlap = candidate.overlap_count || 0;
+                    const overlapCount = candidate.overlap_count || 0;
 
                     return `
                         <div class="candidate-card">
@@ -883,6 +1175,7 @@
                             <div class="candidate-title">${day}</div>
                             <div class="candidate-time">${startTime} ~ ${endTime}</div>
                             <div class="candidate-duration">${duration}분</div>
+                            <div style="margin-top: 10px; font-size: 0.85em; opacity: 0.8;">👥 ${overlapCount}명 가능</div>
                         </div>
                     `;
                 }).join('');
@@ -891,7 +1184,7 @@
 
         // 페이지 로드 시 초기화
         window.addEventListener('load', () => {
-            app.showScreen('welcomeScreen');
+            app.init();
         });
     </script>
 </body>
