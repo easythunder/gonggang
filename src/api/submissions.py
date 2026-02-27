@@ -223,6 +223,20 @@ async def submit_schedule(
             logger.info(
                 f"Created submission {submission.id} with {len(intervals)} intervals"
             )
+            
+            # Trigger calculation explicitly (should already be called in service, but ensuring it happens)
+            if submission.status.value == "SUCCESS":
+                try:
+                    from src.services.calculation import CalculationService
+                    calc_service = CalculationService(db_manager.get_session())
+                    result, calc_error = calc_service.trigger_calculation(group_uuid)
+                    if calc_error:
+                        logger.warning(f"Calculation error for group {group_uuid}: {calc_error}")
+                    else:
+                        logger.info(f"Calculation completed for group {group_uuid}, version: {result.version if result else 'N/A'}")
+                except Exception as calc_exc:
+                    logger.error(f"Failed to trigger calculation: {calc_exc}", exc_info=True)
+                    # Don't fail the submission if calculation fails - user still got their submission saved
 
         except DuplicateSubmissionError:
             raise HTTPException(

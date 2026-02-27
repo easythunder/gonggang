@@ -1070,10 +1070,22 @@
                             <h2>👥 참여자 목록</h2>
                             <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
                                 ${participants.map((p, idx) => {
-                                    const submittedAt = new Date(p.submitted_at).toLocaleString('ko-KR');
+                                    let submittedAtStr = p.submitted_at || '';
+                                    if (submittedAtStr) {
+                                        // +00:00Z 형식을 Z로 변환하여 안정적으로 파싱
+                                        submittedAtStr = submittedAtStr.replace('+00:00Z', 'Z').replace('+00:00', '');
+                                        try {
+                                            const submittedDate = new Date(submittedAtStr);
+                                            submittedAtStr = submittedDate.toLocaleString('ko-KR');
+                                        } catch(e) {
+                                            submittedAtStr = '시간 정보 없음';
+                                        }
+                                    } else {
+                                        submittedAtStr = '시간 정보 없음';
+                                    }
                                     return `<div style="padding: 10px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
                                         <span><strong>${idx + 1}. ${p.nickname}</strong></span>
-                                        <span style="font-size: 0.85em; color: #999;">${submittedAt}</span>
+                                        <span style="font-size: 0.85em; color: #999;">${submittedAtStr}</span>
                                     </div>`;
                                 }).join('')}
                             </div>
@@ -1097,13 +1109,25 @@
                                 <p style="margin-top: 10px; color: #666;">다른 사람들이 시간표를 입력하면 공통 자유시간이 계산됩니다.</p>
                             </div>
                         </div>`;
+                    } else if (data.participant_count > 1) {
+                        // 참여자는 있는데 공통 빈시간이 없음
+                        html += `<div class="section">
+                            <h2>📊 공동 빈시간</h2>
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <p><strong>공통 자유시간이 없습니다</strong></p>
+                                <p style="margin-top: 10px; color: #666;">모든 참여자의 가능한 시간이 겹치지 않습니다.</p>
+                                <p style="margin-top: 20px; padding: 15px; background: #f0f7ff; border-left: 4px solid #0066cc; border-radius: 4px; color: #0066cc;">
+                                    💡 팁: 참여자들의 시간대를 더 휴연하게 설정하거나, 특정 요일에만 참여하도록 요청해보세요.
+                                </p>
+                            </div>
+                        </div>`;
                     } else {
                         html += `<div class="section">
                             <h2>📊 공동 빈시간</h2>
                             <div class="empty-state">
                                 <div class="empty-state-icon">📭</div>
-                                <p>공통 빈시간이 없습니다</p>
-                                <p style="font-size: 0.9em; color: #999; margin-top: 10px;">모든 참여자의 가능한 시간이 겹치지 않습니다.</p>
+                                <p>결과 계산 중입니다...</p>
                             </div>
                         </div>`;
                     }
@@ -1122,7 +1146,21 @@
             renderGroupInfo(data) {
                 const groupName = data.group_name || 'N/A';
                 const participantCount = data.participant_count || 0;
-                const expiresAt = data.expires_at ? new Date(data.expires_at).toLocaleString('ko-KR') : '정보 없음';
+                
+                // 만료시간 안전 파싱: +00:00Z 형식 처리
+                let expiresAtStr = data.expires_at || '';
+                if (expiresAtStr) {
+                    // +00:00Z 형식을 Z로 변환하여 안정적으로 파싱
+                    expiresAtStr = expiresAtStr.replace('+00:00Z', 'Z').replace('+00:00', '');
+                    try {
+                        const expiresDate = new Date(expiresAtStr);
+                        expiresAtStr = expiresDate.toLocaleString('ko-KR');
+                    } catch(e) {
+                        expiresAtStr = '정보 없음';
+                    }
+                } else {
+                    expiresAtStr = '정보 없음';
+                }
 
                 return `
                     <div class="group-info">
@@ -1134,7 +1172,7 @@
                             </div>
                             <div class="stat-card">
                                 <h3>⏰ 만료시간</h3>
-                                <div class="value" style="font-size: 0.8em;">${expiresAt}</div>
+                                <div class="value" style="font-size: 0.8em;">${expiresAtStr}</div>
                             </div>
                         </div>
                     </div>

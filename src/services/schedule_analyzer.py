@@ -37,7 +37,7 @@ class TimeOverlapAnalyzer:
             result = self.session.execute(
                 text("""
                     SELECT id, nickname FROM submissions 
-                    WHERE group_id = :group_id::uuid AND status = 'success'
+                    WHERE group_id::text = :group_id AND status = 'SUCCESS'
                     ORDER BY nickname
                 """),
                 {"group_id": str(group_id)}
@@ -62,7 +62,7 @@ class TimeOverlapAnalyzer:
                     text("""
                         SELECT day_of_week, start_minute, end_minute
                         FROM intervals
-                        WHERE submission_id = :submission_id::uuid
+                        WHERE submission_id::text = :submission_id
                         ORDER BY day_of_week, start_minute
                     """),
                     {"submission_id": str(submission_id)}

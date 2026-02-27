@@ -190,7 +190,7 @@ async def get_group_free_time(
         participants_info = [
             ParticipantInfo(
                 nickname=p.nickname,
-                submitted_at=p.submitted_at.isoformat() + "Z"
+                submitted_at=p.submitted_at.isoformat().replace('+00:00', 'Z')
             )
             for p in sorted(participants, key=lambda p: p.submitted_at)
         ]
@@ -284,7 +284,7 @@ async def get_group_free_time(
             "participants": [
                 {
                     "nickname": p.nickname,
-                    "submitted_at": p.submitted_at.isoformat() + "Z"
+                    "submitted_at": p.submitted_at.isoformat().replace('+00:00', 'Z')
                 }
                 for p in sorted(participants, key=lambda p: p.submitted_at)
             ],
@@ -292,8 +292,8 @@ async def get_group_free_time(
             "free_time_30min": free_time_slots_30min,
             "free_time_60min": free_time_slots_60min,
             "availability_by_day": availability_by_day,
-            "computed_at": (result.computed_at.isoformat() + "Z") if result else None,
-            "expires_at": group.expires_at.isoformat() + "Z",
+            "computed_at": (result.computed_at.isoformat().replace('+00:00', 'Z')) if result else None,
+            "expires_at": group.expires_at.isoformat().replace('+00:00', 'Z'),
             "display_unit_minutes": group.display_unit_minutes,
             "version": result.version if result else 0
         }
@@ -342,7 +342,7 @@ async def get_group_info(groupId: UUID):
         
         submission_count = db.query(Submission).filter(
             Submission.group_id == groupId,
-            Submission.status == "success"
+            Submission.status == "SUCCESS"
         ).count()
         
         return format_response(
@@ -350,9 +350,9 @@ async def get_group_info(groupId: UUID):
             data={
                 "group_id": str(group.id),
                 "group_name": group.group_name,
-                "created_at": group.created_at.isoformat() + "Z",
-                "last_activity_at": group.last_activity_at.isoformat() + "Z",
-                "expires_at": group.expires_at.isoformat() + "Z",
+                "created_at": group.created_at.isoformat().replace('+00:00', 'Z'),
+                "last_activity_at": group.last_activity_at.isoformat().replace('+00:00', 'Z'),
+                "expires_at": group.expires_at.isoformat().replace('+00:00', 'Z'),
                 "invite_url": group.invite_url,
                 "share_url": group.share_url,
                 "display_unit_minutes": group.display_unit_minutes,
@@ -394,7 +394,7 @@ async def view_group_free_time_html(groupId: UUID):
         # Get participants
         participants = db.query(Submission).filter(
             Submission.group_id == groupId,
-            Submission.status == "success"
+            Submission.status == "SUCCESS"
         ).all()
         
         # Build response data
@@ -405,13 +405,13 @@ async def view_group_free_time_html(groupId: UUID):
             "participants": [
                 {
                     "nickname": p.nickname,
-                    "submitted_at": p.created_at.isoformat() + "Z"
+                    "submitted_at": p.created_at.isoformat().replace('+00:00', 'Z')
                 }
                 for p in sorted(participants, key=lambda p: p.created_at)
             ],
             "free_time": result.free_time_intervals if result else [],
             "availability_by_day": result.availability_by_day if result else {},
-            "computed_at": result.computed_at.isoformat() + "Z" if result else None,
+            "computed_at": result.computed_at.isoformat().replace('+00:00', 'Z') if result else None,
             "expires_at": group.expires_at.isoformat() + "Z",
             "display_unit_minutes": group.display_unit_minutes,
             "version": result.version if result else 0

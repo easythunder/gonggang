@@ -83,16 +83,12 @@ async def analyze_group_overlaps(group_id: str) -> OverlapAnalysisResponse:
         except (ValueError, TypeError):
             raise HTTPException(status_code=400, detail="Invalid group_id format")
         
-        # Check if group has submissions with raw SQL
-        from sqlalchemy import text
-        result = db.execute(
-            text("""
-                SELECT COUNT(*) as count FROM submissions 
-                WHERE group_id = :group_id::uuid AND status = 'success'
-            """),
-            {"group_id": str(group_uuid)}
-        )
-        count = result.scalar()
+        # Check if group has submissions using ORM
+        from src.models.models import Submission
+        count = db.query(Submission).filter(
+            Submission.group_id == group_uuid,
+            Submission.status == "SUCCESS"
+        ).count()
         
         if not count or count == 0:
             raise HTTPException(status_code=404, detail="Group not found or no submissions")
@@ -170,18 +166,12 @@ async def get_overlap_summary(group_id: str):
         except (ValueError, TypeError):
             raise HTTPException(status_code=400, detail="Invalid group_id format")
         
-        # Use raw SQL to avoid model loading  issues
-        from sqlalchemy import text
-        
-        # Check if group exists with submissions
-        result = db.execute(
-            text("""
-                SELECT COUNT(*) as count FROM submissions 
-                WHERE group_id = :group_id::uuid AND status = 'success'
-            """),
-            {"group_id": str(group_uuid)}
-        )
-        count = result.scalar()
+        # Use ORM to check if group exists with submissions
+        from src.models.models import Submission
+        count = db.query(Submission).filter(
+            Submission.group_id == group_uuid,
+            Submission.status == "SUCCESS"
+        ).count()
         
         if not count or count == 0:
             raise HTTPException(status_code=404, detail="Group not found or no submissions")
