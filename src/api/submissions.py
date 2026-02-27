@@ -7,7 +7,12 @@ from fastapi.responses import JSONResponse
 from uuid import UUID
 from src.lib.database import DatabaseManager
 from src.services.group import GroupService
-from src.services.submission import SubmissionService, DuplicateSubmissionError, SubmissionError
+from src.services.submission import (
+    SubmissionService,
+    DuplicateSubmissionError,
+    SubmissionError,
+    EverytimeSubmissionParseError,
+)
 from src.services.ocr import OCRWrapper, OCRTimeoutError, OCRFailedError
 from src.services.interval_extractor import IntervalExtractor, IntervalExtractionError
 
@@ -15,6 +20,66 @@ logger = logging.getLogger(__name__)
 
 # Global database manager (initialized in main.py)
 db_manager: DatabaseManager = None
+
+
+def _parse_group_uuid(group_id: str) -> UUID:
+    """Parse and validate group_id string to UUID."""
+    try:
+        return UUID(group_id)
+    except (ValueError, TypeError) as exc:
+        logger.warning(f"Invalid group_id format: {group_id}")
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid group_id format (must be valid UUID)",
+        ) from exc
+
+
+def _validate_nickname(nickname: str) -> None:
+    """Validate nickname format and length."""
+    if not nickname or len(nickname) > 50:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid nickname (1-50 characters)",
+        )
+
+
+def _get_group_or_raise(group_uuid: UUID):
+    """Get group and raise HTTPException if not found/expired."""
+    session = db_manager.get_session()
+    group_service = GroupService(session)
+    group, error_code = group_service.get_group(group_uuid)
+
+    if error_code or not group:
+        if error_code == "GROUP_EXPIRED":
+            raise HTTPException(status_code=410, detail="Group has expired")
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    return group
+
+
+def _build_submission_response(
+    submission,
+    nickname: str,
+    group_uuid: UUID,
+    interval_count: int,
+    total_time_ms: float,
+    ocr_time_ms: float,
+) -> JSONResponse:
+    """Build standardized submission response payload and headers."""
+    response_data = {
+        "submission_id": str(submission.id),
+        "nickname": nickname,
+        "group_id": str(group_uuid),
+        "status": submission.status.value if hasattr(submission.status, "value") else str(submission.status),
+        "interval_count": interval_count,
+        "created_at": submission.submitted_at.isoformat() if hasattr(submission, "submitted_at") else None,
+    }
+
+    response = JSONResponse(status_code=201, content=response_data)
+    response.headers["X-Response-Time"] = f"{total_time_ms:.0f}"
+    response.headers["X-Ocr-Time"] = f"{ocr_time_ms:.0f}"
+    response.headers["X-Interval-Count"] = str(interval_count)
+    return response
 
 
 def set_db_manager(manager: DatabaseManager):
@@ -116,21 +181,10 @@ async def submit_schedule(
 
     try:
         # Parse and validate group_id
-        try:
-            group_uuid = UUID(group_id)
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid group_id format: {group_id}")
-            raise HTTPException(
-                status_code=422,
-                detail="Invalid group_id format (must be valid UUID)"
-            )
+        group_uuid = _parse_group_uuid(group_id)
 
         # Validate nickname
-        if not nickname or len(nickname) > 50:
-            raise HTTPException(
-                status_code=422,
-                detail="Invalid nickname (1-50 characters)"
-            )
+        _validate_nickname(nickname)
 
         # Validate file
         if not image or image.size == 0:
@@ -153,15 +207,7 @@ async def submit_schedule(
         )
 
         # Get group and verify not expired
-        session = db_manager.get_session()
-        group_service = GroupService(session)
-        group, error_code = group_service.get_group(group_uuid)
-
-        if error_code or not group:
-            if error_code == "GROUP_EXPIRED":
-                raise HTTPException(status_code=410, detail="Group has expired")
-            else:
-                raise HTTPException(status_code=404, detail="Group not found")
+        group = _get_group_or_raise(group_uuid)
 
         # Parse image with OCR
         logger.debug(f"Starting OCR parsing ({_ocr_wrapper.timeout_seconds}s timeout)")
@@ -257,26 +303,76 @@ async def submit_schedule(
         )
 
         # Return response with timing headers
-        response_data = {
-            "submission_id": str(submission.id),
-            "nickname": nickname,
-            "group_id": str(group_uuid),
-            "status": submission.status.value if hasattr(submission.status, 'value') else str(submission.status),
-            "interval_count": len(intervals),
-            "created_at": submission.submitted_at.isoformat() if hasattr(submission, 'submitted_at') else None,
-        }
-
-        response = JSONResponse(status_code=201, content=response_data)
-        response.headers["X-Response-Time"] = f"{total_time_ms:.0f}"
-        response.headers["X-Ocr-Time"] = f"{ocr_time_ms:.0f}"
-        response.headers["X-Interval-Count"] = str(len(intervals))
-
-        return response
+        return _build_submission_response(
+            submission=submission,
+            nickname=nickname,
+            group_uuid=group_uuid,
+            interval_count=len(intervals),
+            total_time_ms=total_time_ms,
+            ocr_time_ms=ocr_time_ms,
+        )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Unexpected error in submit_schedule: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/submissions/everytime-link", status_code=201, response_class=JSONResponse)
+async def submit_schedule_by_everytime_link(
+    group_id: str = Form(...),
+    nickname: str = Form(...),
+    everytime_url: str = Form(...),
+    _submission_service: SubmissionService = Depends(get_submission_service),
+):
+    """Submit schedule by parsing public Everytime timetable link."""
+    start_time = time.time()
+
+    try:
+        group_uuid = _parse_group_uuid(group_id)
+        _validate_nickname(nickname)
+
+        if not everytime_url:
+            raise HTTPException(status_code=422, detail="everytime_url is required")
+
+        group = _get_group_or_raise(group_uuid)
+
+        submission, intervals = _submission_service.create_submission_from_everytime_link(
+            group_id=group_uuid,
+            nickname=nickname,
+            everytime_url=everytime_url,
+            display_unit_minutes=group.display_unit_minutes,
+        )
+
+        _submission_service.update_group_last_activity(group_uuid)
+
+        total_time_ms = (time.time() - start_time) * 1000
+
+        return _build_submission_response(
+            submission=submission,
+            nickname=nickname,
+            group_uuid=group_uuid,
+            interval_count=len(intervals),
+            total_time_ms=total_time_ms,
+            ocr_time_ms=0,
+        )
+
+    except DuplicateSubmissionError:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Nickname '{nickname}' already submitted for this group",
+        )
+    except EverytimeSubmissionParseError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntervalExtractionError as exc:
+        raise HTTPException(status_code=422, detail=f"Interval extraction failed: {exc}") from exc
+    except SubmissionError:
+        raise HTTPException(status_code=500, detail="Submission storage failed")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in submit_schedule_by_everytime_link: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

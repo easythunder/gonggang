@@ -592,7 +592,7 @@
                     <h2>시간표 업로드</h2>
                     
                     <div class="form-group">
-                        <label>당신의 시간표 이미지</label>
+                        <label>당신의 시간표 이미지 또는 에브리타임 링크</label>
                         <div class="schedule-upload" id="createScheduleUploadBox" onclick="document.getElementById('createScheduleFile').click()">
                             <div class="upload-icon">📅</div>
                             <div>클릭하여 이미지 선택 또는 드래그 앤 드롭</div>
@@ -600,6 +600,14 @@
                             <input type="file" id="createScheduleFile" accept="image/*" style="display: none;" onchange="app.handleScheduleUpload(event, 'create')">
                         </div>
                         <div class="schedule-preview" id="createSchedulePreview"></div>
+                        <div style="text-align: center; margin: 10px 0; color: #666; font-size: 0.9em;">또는</div>
+                        <input
+                            type="url"
+                            id="createEverytimeUrl"
+                            placeholder="https://everytime.kr/@..."
+                            oninput="app.handleEverytimeLinkInput('create')"
+                        >
+                        <div class="form-hint">에브리타임 시간표 공유 링크를 붙여넣어도 제출할 수 있습니다</div>
                     </div>
 
                     <div class="info-box">
@@ -635,7 +643,7 @@
                 </div>
 
                 <div class="form-group" id="joinScheduleFormGroup" style="display: none;">
-                    <label>당신의 시간표 이미지</label>
+                    <label>당신의 시간표 이미지 또는 에브리타임 링크</label>
                     <div class="schedule-upload" id="joinScheduleUploadBox" onclick="document.getElementById('joinScheduleFile').click()">
                         <div class="upload-icon">📅</div>
                         <div>클릭하여 이미지 선택 또는 드래그 앤 드롭</div>
@@ -643,6 +651,14 @@
                         <input type="file" id="joinScheduleFile" accept="image/*" style="display: none;" onchange="app.handleScheduleUpload(event, 'join')">
                     </div>
                     <div class="schedule-preview" id="joinSchedulePreview"></div>
+                    <div style="text-align: center; margin: 10px 0; color: #666; font-size: 0.9em;">또는</div>
+                    <input
+                        type="url"
+                        id="joinEverytimeUrl"
+                        placeholder="https://everytime.kr/@..."
+                        oninput="app.handleEverytimeLinkInput('join')"
+                    >
+                    <div class="form-hint">에브리타임 시간표 공유 링크를 붙여넣어도 제출할 수 있습니다</div>
                 </div>
 
                 <div class="button-group">
@@ -749,6 +765,7 @@
                 this.groupId = null;
                 this.groupName = null;
                 this.scheduleFile = null;
+                this.currentNickname = null;
                 this.showScreen('welcomeScreen');
             },
 
@@ -762,6 +779,7 @@
                 document.getElementById('createNickname').value = '';
                 document.getElementById('displayUnit').value = '30';
                 document.getElementById('createSchedulePreview').innerHTML = '';
+                document.getElementById('createEverytimeUrl').value = '';
                 document.getElementById('createSubmitBtn').disabled = false;
                 document.getElementById('createSubmitBtn').textContent = '그룹 생성하기';
                 document.getElementById('createFormSection').style.display = 'block';
@@ -779,6 +797,7 @@
                 document.getElementById('joinGroupId').value = '';
                 document.getElementById('joinNickname').value = randomName;
                 document.getElementById('joinSchedulePreview').innerHTML = '';
+                document.getElementById('joinEverytimeUrl').value = '';
                 document.getElementById('joinGroupError').style.display = 'none';
                 document.getElementById('joinGroupSuccess').style.display = 'none';
                 document.getElementById('joinGroupFormGroup').style.display = 'none';
@@ -859,12 +878,16 @@
                 document.getElementById('createScheduleSection').style.display = 'block';
                 document.getElementById('createScheduleUploadBox').style.display = 'block';
                 document.getElementById('createSchedulePreview').innerHTML = '';
+                document.getElementById('createEverytimeUrl').value = '';
                 this.scheduleFile = null;
+                this.checkCreateScheduleForm();
             },
 
             async submitCreateGroupWithSchedule() {
-                if (!this.scheduleFile) {
-                    alert('이미지를 선택해주세요');
+                const everytimeUrl = document.getElementById('createEverytimeUrl').value.trim();
+
+                if (!this.scheduleFile && !everytimeUrl) {
+                    alert('이미지를 선택하거나 에브리타임 링크를 입력해주세요');
                     return;
                 }
 
@@ -872,16 +895,28 @@
                 const resultsContent = document.getElementById('resultsContent');
 
                 try {
-                    // 이미지 제출
-                    const formData = new FormData();
-                    formData.append('group_id', this.groupId);
-                    formData.append('nickname', this.currentNickname);
-                    formData.append('image', this.scheduleFile);
+                    let submitRes;
+                    if (this.scheduleFile) {
+                        const formData = new FormData();
+                        formData.append('group_id', this.groupId);
+                        formData.append('nickname', this.currentNickname);
+                        formData.append('image', this.scheduleFile);
 
-                    const submitRes = await fetch(`${API_BASE}/api/submissions`, {
-                        method: 'POST',
-                        body: formData
-                    });
+                        submitRes = await fetch(`${API_BASE}/api/submissions`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    } else {
+                        const formData = new FormData();
+                        formData.append('group_id', this.groupId);
+                        formData.append('nickname', this.currentNickname);
+                        formData.append('everytime_url', everytimeUrl);
+
+                        submitRes = await fetch(`${API_BASE}/api/submissions/everytime-link`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    }
 
                     if (!submitRes.ok) {
                         const errorData = await submitRes.json();
@@ -949,13 +984,14 @@
 
             async submitJoinGroup() {
                 const nickname = document.getElementById('joinNickname').value.trim();
+                const everytimeUrl = document.getElementById('joinEverytimeUrl').value.trim();
                 
                 if (!nickname) {
                     alert('이름/별명을 입력해주세요');
                     return;
                 }
-                if (!this.scheduleFile) {
-                    alert('이미지를 선택해주세요');
+                if (!this.scheduleFile && !everytimeUrl) {
+                    alert('이미지를 선택하거나 에브리타임 링크를 입력해주세요');
                     return;
                 }
 
@@ -963,16 +999,28 @@
                 const resultsContent = document.getElementById('resultsContent');
 
                 try {
-                    // 이미지 제출
-                    const formData = new FormData();
-                    formData.append('group_id', this.groupId);
-                    formData.append('nickname', nickname);
-                    formData.append('image', this.scheduleFile);
+                    let res;
+                    if (this.scheduleFile) {
+                        const formData = new FormData();
+                        formData.append('group_id', this.groupId);
+                        formData.append('nickname', nickname);
+                        formData.append('image', this.scheduleFile);
 
-                    const res = await fetch(`${API_BASE}/api/submissions`, {
-                        method: 'POST',
-                        body: formData
-                    });
+                        res = await fetch(`${API_BASE}/api/submissions`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    } else {
+                        const formData = new FormData();
+                        formData.append('group_id', this.groupId);
+                        formData.append('nickname', nickname);
+                        formData.append('everytime_url', everytimeUrl);
+
+                        res = await fetch(`${API_BASE}/api/submissions/everytime-link`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    }
 
                     if (!res.ok) {
                         const errorData = await res.json();
@@ -1029,19 +1077,31 @@
                 reader.readAsDataURL(file);
             },
 
+            handleEverytimeLinkInput(flow) {
+                if (flow === 'create') {
+                    this.checkCreateScheduleForm();
+                } else {
+                    this.checkJoinForm();
+                }
+            },
+
             // ========== 폼 검증 ==========
             checkCreateScheduleForm() {
                 const hasFile = this.scheduleFile !== null;
+                const linkInput = document.getElementById('createEverytimeUrl');
+                const hasLink = !!(linkInput && linkInput.value.trim());
                 const btn = document.querySelector('#createScheduleSection .btn-primary');
-                if (btn) btn.disabled = !hasFile;
+                if (btn) btn.disabled = !(hasFile || hasLink);
             },
 
             checkJoinForm() {
                 const nickname = document.getElementById('joinNickname').value.trim();
                 const hasFile = this.scheduleFile !== null;
+                const linkInput = document.getElementById('joinEverytimeUrl');
+                const hasLink = !!(linkInput && linkInput.value.trim());
                 const submitBtn = document.getElementById('joinSubmitBtn');
                 if (submitBtn) {
-                    submitBtn.disabled = !(nickname && hasFile);
+                    submitBtn.disabled = !(nickname && (hasFile || hasLink));
                 }
             },
 
