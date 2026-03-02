@@ -6,7 +6,7 @@ from src.models.models import Submission, SubmissionStatus
 from src.repositories.submission import SubmissionRepository
 from src.repositories.interval import IntervalRepository
 from src.repositories.group import GroupRepository
-from src.services.interval_extractor import IntervalExtractor, IntervalData
+from src.services.interval_extractor import IntervalExtractor, IntervalExtractionError, IntervalData
 from src.services.everytime_parser import EverytimeTimetableParser, EverytimeParserError
 from src.lib.database import DatabaseManager
 

@@ -19,14 +19,32 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies (including Playwright system deps)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libpq5 \
+    libnss3 \
+    libnspr4 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libatspi2.0-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages from builder
 COPY --from=builder /root/.local /root/.local
+
+# Install Playwright browsers
+RUN /root/.local/bin/playwright install chromium
 
 # Set PATH
 ENV PATH=/root/.local/bin:$PATH
