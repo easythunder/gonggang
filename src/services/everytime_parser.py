@@ -2,9 +2,14 @@
 
 Fetches public Everytime timetable HTML and extracts lecture blocks to
 normalized interval pairs.
+
+Uses Playwright for JavaScript rendering since Everytime uses dynamic loading.
 """
 import logging
 import re
+import subprocess
+import sys
+import json
 from typing import List, Tuple
 from html.parser import HTMLParser
 from urllib.parse import urlparse
@@ -15,6 +20,58 @@ logger = logging.getLogger(__name__)
 
 PIXELS_PER_HOUR = 60
 MINUTES_PER_DAY = 1440
+
+# Playwright helper script
+PLAYWRIGHT_HELPER = """
+import asyncio
+import sys
+from playwright.async_api import async_playwright
+
+async def fetch_rendered_html(url, timeout_seconds):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=False,  # Run in headed mode to avoid bot detection
+            args=[
+                '--disable-blink-features=AutomationControlled',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+            ]
+        )
+        context = await browser.new_context(
+            viewport={'width': 1920, 'height': 1080},
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+        )
+        page = await context.new_page()
+        
+        # Set extra headers to avoid bot detection
+        await page.set_extra_http_headers({
+            'Accept-Language': 'ko-KR,ko;q=0.9',
+            'Referer': 'https://everytime.kr/',
+        })
+        
+        try:
+            await page.goto(url, timeout=timeout_seconds*1000, wait_until='domcontentloaded')
+            
+            # Wait for subjects to appear
+            try:
+                await page.wait_for_selector('div.subject', timeout=5000)
+            except:
+                pass
+            
+            # Additional wait for JavaScript execution
+            await page.wait_for_timeout(2000)
+            
+            html = await page.content()
+            return html
+        finally:
+            await browser.close()
+
+if __name__ == "__main__":
+    url = sys.argv[1]
+    timeout = int(sys.argv[2])
+    html = asyncio.run(fetch_rendered_html(url, timeout))
+    print(html)
+"""
 
 
 class EverytimeParserError(Exception):
@@ -39,10 +96,22 @@ class EverytimeTimetableParser:
             return False
 
     def fetch_html(self, url: str, timeout_seconds: int = 5) -> str:
-        """Fetch HTML from Everytime share URL."""
+        """Fetch HTML from Everytime share URL, rendering JavaScript if available."""
         if not self.validate_everytime_url(url):
             raise EverytimeParserError("Invalid Everytime timetable URL")
 
+        # Try Playwright via subprocess first
+        try:
+            return self._fetch_html_with_playwright(url, timeout_seconds)
+        except Exception as exc:
+            logger.warning(f"Playwright rendering failed, falling back to static HTML: {exc}")
+            # Fall through to static HTML fetch
+        
+        # Fallback to static HTML
+        return self._fetch_html_static(url, timeout_seconds)
+    
+    def _fetch_html_static(self, url: str, timeout_seconds: int = 5) -> str:
+        """Fetch static HTML (without JavaScript rendering)."""
         try:
             request = Request(
                 url,
@@ -58,6 +127,31 @@ class EverytimeTimetableParser:
                 return response.read().decode("utf-8", errors="ignore")
         except (URLError, HTTPError, TimeoutError) as exc:
             raise EverytimeParserError(f"Failed to fetch Everytime HTML: {exc}") from exc
+    
+    def _fetch_html_with_playwright(self, url: str, timeout_seconds: int = 5) -> str:
+        """Fetch HTML using Playwright via subprocess."""
+        import tempfile
+        import os
+        
+        # Create temp script file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(PLAYWRIGHT_HELPER)
+            script_path = f.name
+        
+        try:
+            result = subprocess.run(
+                [sys.executable, script_path, url, str(timeout_seconds)],
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds + 10
+            )
+            
+            if result.returncode != 0:
+                raise EverytimeParserError(f"Playwright failed: {result.stderr}")
+            
+            return result.stdout
+        finally:
+            os.unlink(script_path)
 
     def parse_html_to_pairs(self, html: str) -> List[Tuple[int, int, int]]:
         """Parse Everytime HTML and return (day_of_week, start_minute, end_minute)."""
