@@ -7,14 +7,16 @@ import logging
 import re
 from typing import List, Tuple
 from html.parser import HTMLParser
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
+import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
 
 PIXELS_PER_HOUR = 60
 MINUTES_PER_DAY = 1440
+EVERYTIME_API_BASE_URL = "https://api.everytime.kr"
 
 
 class EverytimeParserError(Exception):
@@ -91,7 +93,100 @@ class EverytimeTimetableParser:
     def parse_from_url(self, url: str, timeout_seconds: int = 5) -> List[Tuple[int, int, int]]:
         """Fetch Everytime link and parse timetable interval pairs."""
         html = self.fetch_html(url, timeout_seconds=timeout_seconds)
-        return self.parse_html_to_pairs(html)
+        try:
+            return self.parse_html_to_pairs(html)
+        except EverytimeParserError as html_error:
+            identifier = self._extract_identifier_from_url(url)
+            if not identifier:
+                raise html_error
+
+            try:
+                return self._fetch_pairs_from_api(identifier, timeout_seconds=timeout_seconds)
+            except EverytimeParserError:
+                raise html_error
+
+    def _extract_identifier_from_url(self, url: str) -> str:
+        parsed = urlparse(url)
+        if not parsed.path.startswith("/@"):
+            return ""
+
+        identifier = parsed.path[2:].split("/")[0].strip()
+        return identifier
+
+    def _fetch_pairs_from_api(
+        self,
+        identifier: str,
+        timeout_seconds: int = 5,
+    ) -> List[Tuple[int, int, int]]:
+        api_url = f"{EVERYTIME_API_BASE_URL}/find/timetable/table/friend"
+        body = urlencode({"identifier": identifier, "friendInfo": "true"}).encode("utf-8")
+
+        request = Request(
+            api_url,
+            data=body,
+            method="POST",
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+                "Referer": f"https://everytime.kr/@{identifier}",
+                "Origin": "https://everytime.kr",
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            },
+        )
+
+        try:
+            with urlopen(request, timeout=timeout_seconds) as response:
+                xml_text = response.read().decode("utf-8", errors="ignore")
+        except (URLError, HTTPError, TimeoutError) as exc:
+            raise EverytimeParserError(f"Failed to fetch Everytime API XML: {exc}") from exc
+
+        return self._parse_api_xml_to_pairs(xml_text)
+
+    def _parse_api_xml_to_pairs(self, xml_text: str) -> List[Tuple[int, int, int]]:
+        try:
+            root = ET.fromstring(xml_text.lstrip())
+        except ET.ParseError as exc:
+            raise EverytimeParserError("Invalid Everytime API XML") from exc
+
+        interval_pairs: List[Tuple[int, int, int]] = []
+        for time_data in root.findall(".//table/subject/time/data"):
+            day_raw = time_data.attrib.get("day")
+            start_raw = time_data.attrib.get("starttime")
+            end_raw = time_data.attrib.get("endtime")
+
+            if day_raw is None or start_raw is None or end_raw is None:
+                continue
+
+            try:
+                day_index = int(day_raw)
+                start_minute = int(start_raw) * 5
+                end_minute = int(end_raw) * 5
+            except ValueError:
+                continue
+
+            if day_index < 0 or day_index > 6:
+                continue
+
+            start_minute = self._align_to_5min(start_minute)
+            end_minute = self._align_to_5min(end_minute)
+
+            if start_minute < 0:
+                start_minute = 0
+            if end_minute > MINUTES_PER_DAY:
+                end_minute = MINUTES_PER_DAY
+
+            if start_minute >= end_minute:
+                continue
+
+            interval_pairs.append((day_index, start_minute, end_minute))
+
+        if not interval_pairs:
+            raise EverytimeParserError("Timetable rows not found in Everytime API response")
+
+        return interval_pairs
 
     @staticmethod
     def _align_to_5min(minute: int) -> int:
