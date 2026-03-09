@@ -15,6 +15,8 @@ from src.services.submission import (
 )
 from src.services.ocr import OCRWrapper, OCRTimeoutError, OCRFailedError
 from src.services.interval_extractor import IntervalExtractor, IntervalExtractionError
+from src.services.image_pipeline import TimetableImagePipeline, PipelineResult
+from src.services.timetable_detector import TimetableDetectionError
 
 logger = logging.getLogger(__name__)
 
@@ -465,3 +467,203 @@ async def list_group_submissions(
     except Exception as e:
         logger.error(f"Failed to list submissions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ============================================================
+# YOLO-based Image Processing Pipeline
+# ============================================================
+
+@router.post("/submissions/image-yolo", status_code=201, response_class=JSONResponse)
+async def submit_schedule_with_yolo(
+    group_id: str = Form(...),
+    nickname: str = Form(...),
+    image: UploadFile = File(...),
+    _submission_service: SubmissionService = Depends(get_submission_service),
+):
+    """Submit schedule image using YOLO detection pipeline.
+    
+    Pipeline:
+    1. 🖼️  Image decoding
+    2. 🔍 YOLO timetable detection
+    3. ✂️  Bounding box extraction and cropping
+    4. 📖 OCR text extraction
+    5. 📍 Coordinate-based schedule generation
+    
+    Request:
+    - group_id: UUID of target group
+    - nickname: Participant name
+    - image: Schedule screenshot
+    
+    Response:
+    - submission_id: UUID
+    - schedule: Extracted [day, start, end, class_name]
+    - metadata: Detection details and coordinates
+    - status: "success" or "error"
+    
+    Status codes:
+    - 201: Success
+    - 404: Group not found
+    - 409: Duplicate nickname
+    - 422: Invalid input
+    - 500: Server error
+    """
+    start_time = time.time()
+    
+    try:
+        # Validate inputs
+        group_uuid = _parse_group_uuid(group_id)
+        _validate_nickname(nickname)
+        
+        if not image or image.size == 0:
+            raise HTTPException(status_code=422, detail="Invalid image file")
+        
+        # Read image bytes
+        image_bytes = await image.read()
+        if not image_bytes:
+            raise HTTPException(status_code=400, detail="Empty image file")
+        
+        # Get group
+        group = _get_group_or_raise(group_uuid)
+        
+        logger.info(f"Processing image with YOLO: group={group_uuid}, nickname={nickname}")
+        
+        # Initialize pipeline
+        try:
+            pipeline = TimetableImagePipeline(
+                yolo_model_path=None,  # Use default YOLOv8n
+                ocr_timeout=5,
+                detection_confidence=0.5
+            )
+        except TimetableDetectionError as e:
+            logger.error(f"Pipeline initialization failed: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Pipeline initialization error: {str(e)}"
+            )
+        
+        # Process image through pipeline
+        logger.info("Running YOLO-based image processing pipeline...")
+        pipeline_result: PipelineResult = pipeline.process(
+            image_bytes,
+            display_unit_minutes=group.display_unit_minutes,
+            save_crop=True
+        )
+        
+        if not pipeline_result.success:
+            logger.warning(f"Pipeline failed: {pipeline_result.error_message}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Image processing failed: {pipeline_result.error_message}"
+            )
+        
+        logger.info(f"Pipeline successful: extracted {len(pipeline_result.schedule)} classes")
+        
+        # Convert schedule to intervals using interval extractor
+        if pipeline_result.schedule:
+            # Schedule format: [{'day': str, 'start': str, 'end': str, ...}]
+            extractor = IntervalExtractor(display_unit_minutes=group.display_unit_minutes)
+            
+            try:
+                # Convert to IntervalData format
+                interval_data_list = []
+                for item in pipeline_result.schedule:
+                    try:
+                        day_idx = 0 if item['day'] == '월' else \
+                                  1 if item['day'] == '화' else \
+                                  2 if item['day'] == '수' else \
+                                  3 if item['day'] == '목' else \
+                                  4 if item['day'] == '금' else \
+                                  5 if item['day'] == '토' else 6
+                        
+                        start_h, start_m = map(int, item['start'].split(':'))
+                        end_h, end_m = map(int, item['end'].split(':'))
+                        
+                        start_min = start_h * 60 + start_m
+                        end_min = end_h * 60 + end_m
+                        
+                        interval_data_list.append((day_idx, start_min, end_min))
+                    except Exception as e:
+                        logger.warning(f"Failed to parse schedule item {item}: {e}")
+                        continue
+                
+                intervals = interval_data_list
+            except Exception as e:
+                logger.error(f"Interval extraction failed: {e}")
+                intervals = []
+        else:
+            intervals = []
+        
+        # Create submission in database
+        try:
+            submission, error_code = _submission_service.create_submission(
+                group_id=group_uuid,
+                nickname=nickname,
+                intervals=intervals,
+                ocr_success=pipeline_result.success,
+                error_reason=None if pipeline_result.success else pipeline_result.error_message,
+            )
+            
+            if error_code:
+                raise HTTPException(status_code=500, detail=f"Failed to create submission: {error_code}")
+            
+            _submission_service.update_group_last_activity(group_uuid)
+            
+            logger.info(f"Submission created: {submission.id} with {len(intervals)} intervals")
+            
+            # Trigger calculation
+            if submission.status.value == "SUCCESS":
+                try:
+                    from src.services.calculation import CalculationService
+                    calc_service = CalculationService(db_manager.get_session())
+                    result, calc_error = calc_service.trigger_calculation(group_uuid)
+                    if calc_error:
+                        logger.warning(f"Calculation error: {calc_error}")
+                except Exception as calc_exc:
+                    logger.error(f"Calculation error: {calc_exc}")
+        
+        except DuplicateSubmissionError:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Nickname '{nickname}' already submitted for this group"
+            )
+        except SubmissionError as e:
+            logger.error(f"Submission creation failed: {e}")
+            raise HTTPException(status_code=500, detail="Submission storage failed")
+        
+        # Build response
+        total_time_ms = (time.time() - start_time) * 1000
+        
+        response_data = {
+            "submission_id": str(submission.id),
+            "nickname": nickname,
+            "group_id": str(group_uuid),
+            "status": submission.status.value if hasattr(submission.status, "value") else str(submission.status),
+            "interval_count": len(intervals),
+            "created_at": submission.submitted_at.isoformat() if hasattr(submission, "submitted_at") else None,
+            "extracted_schedule": pipeline_result.schedule,
+            "metadata": {
+                **pipeline_result.metadata,
+                "pipeline_status": "success",
+                "cell_detections": pipeline_result.cell_count,
+                "ocr_text_preview": pipeline_result.ocr_text[:200] if pipeline_result.ocr_text else None,
+            }
+        }
+        
+        response = JSONResponse(status_code=201, content=response_data)
+        response.headers["X-Response-Time"] = f"{total_time_ms:.0f}"
+        response.headers["X-Pipeline-Success"] = "true"
+        response.headers["X-Cell-Count"] = str(pipeline_result.cell_count)
+        
+        return response
+    
+    except DuplicateSubmissionError:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Nickname '{nickname}' already submitted for this group"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in submit_schedule_with_yolo: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+

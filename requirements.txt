@@ -11,6 +11,8 @@ python-multipart
 Pillow==9.5.0
 pytesseract==0.3.10
 # PaddleOCR==2.7.0.3  # Optional alternative to Tesseract
+ultralytics==8.0.225  # YOLOv8 for timetable detection
+opencv-python-headless==4.8.1.78  # Image processing (headless for Docker)
 
 # Testing & Quality
 pytest==7.3.1

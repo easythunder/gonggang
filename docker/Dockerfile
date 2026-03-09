@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libtesseract-dev \
+    libgl1 \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,6 +24,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libpq5 \
+    libgl1 \
     libnss3 \
     libnspr4 \
     libdbus-1-3 \
@@ -46,8 +48,12 @@ COPY --from=builder /root/.local /root/.local
 # Install Playwright browsers
 RUN /root/.local/bin/playwright install chromium
 
-# Set PATH
+# Fix PyTorch 2.6+ weights_only issue by downgrading to PyTorch 2.5
+RUN /root/.local/bin/pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu 2>&1 | grep -v "already satisfied" || true
+
+# Set PATH and PYTHONPATH for user-installed packages
 ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONPATH=/root/.local/lib/python3.11/site-packages:$PYTHONPATH
 ENV PYTHONUNBUFFERED=1
 
 # Copy application
