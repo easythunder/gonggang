@@ -403,7 +403,7 @@ async def submit_schedule_url(
     - nickname: Submitted nickname
     - group_id: Group UUID
     - type: 'link'
-    - status: 'PENDING' (URL parsing not yet implemented)
+    - status: 'SUCCESS'
     - url: Submitted URL
     - created_at: ISO timestamp
     
@@ -443,12 +443,14 @@ async def submit_schedule_url(
         )
 
         # Create submission with link type
-        # URL parsing is stored for future processing
+        # URL is stored as payload_ref for future parsing.
+        # intervals=[] since URL parsing is not yet implemented;
+        # ocr_success=True so status is set to SUCCESS (URL accepted).
         try:
             submission = _submission_service.create_submission(
                 group_id=group_uuid,
                 nickname=request.nickname,
-                intervals=[],  # URL parsing not yet implemented
+                intervals=[],
                 ocr_success=True,
                 submission_type=SubmissionType.LINK,
                 payload_ref=request.url,
