@@ -20,6 +20,14 @@ class SubmissionStatus(str, py_enum.Enum):
     PENDING = "pending"
 
 
+class SubmissionType(str, py_enum.Enum):
+    """Submission type enumeration."""
+
+    IMAGE = "image"
+    LINK = "link"
+    MANUAL = "manual"
+
+
 class Group(Base):
     """Group data model."""
 
@@ -85,6 +93,13 @@ class Submission(Base):
         index=True,
     )
     nickname = Column(String(255), nullable=False)
+    type = Column(
+        Enum(SubmissionType),
+        nullable=False,
+        default=SubmissionType.IMAGE,
+        server_default="image",
+    )
+    payload_ref = Column(String(500), nullable=True)
     submitted_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     status = Column(
         Enum(SubmissionStatus),

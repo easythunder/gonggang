@@ -12,3 +12,7 @@ venv/
 
 # Env
 .env
+
+# Coverage
+.coverage
+htmlcov/

@@ -1,11 +1,14 @@
 """API endpoints for submission management."""
 import logging
+import re
 import time
 from typing import Optional
 from fastapi import APIRouter, File, Form, UploadFile, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, validator
 from uuid import UUID
 from src.lib.database import DatabaseManager
+from src.models.models import SubmissionType
 from src.services.group import GroupService
 from src.services.submission import SubmissionService, DuplicateSubmissionError, SubmissionError
 from src.services.ocr import OCRWrapper, OCRTimeoutError, OCRFailedError
@@ -66,6 +69,27 @@ class SubmitScheduleResponse:
     interval_count: int
     created_at: str
     ocr_confidence: Optional[float] = None
+
+
+class SubmitUrlRequest(BaseModel):
+    """Request model for URL-based schedule submission."""
+    group_id: str = Field(..., description="UUID of target group")
+    nickname: str = Field(..., min_length=1, max_length=50, description="Participant display name")
+    url: str = Field(..., min_length=1, max_length=2000, description="Schedule URL (e.g., Everytime link)")
+
+    @validator("url")
+    def validate_url(cls, v):
+        """Validate URL format."""
+        url_pattern = re.compile(
+            r'^https?://'
+            r'(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*'
+            r'[a-zA-Z]{2,}'
+            r'(?::\d{1,5})?'
+            r'(?:/[^\s]*)?$'
+        )
+        if not url_pattern.match(v):
+            raise ValueError("Invalid URL format. Must be a valid HTTP or HTTPS URL.")
+        return v
 
 
 @router.post("/submissions", status_code=201, response_class=JSONResponse)
@@ -295,6 +319,7 @@ async def get_submission(
             "submission_id": str(submission.id),
             "group_id": str(submission.group_id),
             "nickname": submission.nickname,
+            "type": submission.type.value if hasattr(submission.type, 'value') else str(submission.type),
             "status": submission.status.value if hasattr(submission.status, 'value') else str(submission.status),
             "interval_count": len(intervals),
             "submitted_at": submission.submitted_at.isoformat() if hasattr(submission, 'submitted_at') else None,
@@ -302,6 +327,9 @@ async def get_submission(
 
         if submission.error_reason:
             response_data["error_reason"] = submission.error_reason
+
+        if submission.payload_ref:
+            response_data["payload_ref"] = submission.payload_ref
 
         return response_data
 
@@ -337,6 +365,7 @@ async def list_group_submissions(
             {
                 "submission_id": str(sub.id),
                 "nickname": sub.nickname,
+                "type": sub.type.value if hasattr(sub.type, 'value') else str(sub.type),
                 "status": sub.status.value if hasattr(sub.status, 'value') else str(sub.status),
                 "submitted_at": sub.submitted_at.isoformat() if hasattr(sub, 'submitted_at') else None,
             }
@@ -351,4 +380,121 @@ async def list_group_submissions(
 
     except Exception as e:
         logger.error(f"Failed to list submissions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/submissions/url", status_code=201, response_class=JSONResponse)
+async def submit_schedule_url(
+    request: SubmitUrlRequest,
+    _submission_service: SubmissionService = Depends(get_submission_service),
+):
+    """Submit a schedule URL for free time calculation.
+    
+    Accepts a URL (e.g., Everytime schedule link) instead of an image upload.
+    The URL is stored as a reference; actual parsing is deferred to a future phase.
+    
+    Request (JSON):
+    - group_id (string): UUID of target group
+    - nickname (string): Participant display name (1-50 chars)
+    - url (string): Schedule URL (must be valid HTTP/HTTPS)
+    
+    Response (201):
+    - submission_id: UUID of created submission
+    - nickname: Submitted nickname
+    - group_id: Group UUID
+    - type: 'link'
+    - status: 'PENDING' (URL parsing not yet implemented)
+    - url: Submitted URL
+    - created_at: ISO timestamp
+    
+    Error Responses:
+    - 404: Group not found or expired
+    - 409: Duplicate submission (nickname already exists)
+    - 422: Invalid input (group_id not UUID, invalid URL, nickname too long)
+    - 500: Server error
+    """
+    start_time = time.time()
+
+    try:
+        # Parse and validate group_id
+        try:
+            group_uuid = UUID(request.group_id)
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid group_id format: {request.group_id}")
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid group_id format (must be valid UUID)"
+            )
+
+        # Get group and verify not expired
+        session = db_manager.get_session()
+        group_service = GroupService(session)
+        group, error_code = group_service.get_group(group_uuid)
+
+        if error_code or not group:
+            if error_code == "GROUP_EXPIRED":
+                raise HTTPException(status_code=410, detail="Group has expired")
+            else:
+                raise HTTPException(status_code=404, detail="Group not found")
+
+        logger.info(
+            f"Processing URL submission: group={group_uuid}, "
+            f"nickname={request.nickname}, url={request.url}"
+        )
+
+        # Create submission with link type
+        # URL parsing is stored for future processing
+        try:
+            submission = _submission_service.create_submission(
+                group_id=group_uuid,
+                nickname=request.nickname,
+                intervals=[],  # URL parsing not yet implemented
+                ocr_success=True,
+                submission_type=SubmissionType.LINK,
+                payload_ref=request.url,
+            )
+
+            # Update group's last_activity_at
+            _submission_service.update_group_last_activity(group_uuid)
+
+            logger.info(
+                f"Created URL submission {submission.id} for group {group_uuid}"
+            )
+
+        except DuplicateSubmissionError:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Nickname '{request.nickname}' already submitted for this group"
+            )
+        except SubmissionError as e:
+            logger.error(f"Submission creation failed: {e}")
+            raise HTTPException(status_code=500, detail="Submission storage failed")
+
+        # Calculate timing
+        total_time_ms = (time.time() - start_time) * 1000
+
+        logger.info(
+            f"URL submission completed: {submission.id} ({total_time_ms:.0f}ms)"
+        )
+
+        # Return response
+        response_data = {
+            "submission_id": str(submission.id),
+            "nickname": request.nickname,
+            "group_id": str(group_uuid),
+            "type": SubmissionType.LINK.value,
+            "status": submission.status.value if hasattr(submission.status, 'value') else str(submission.status),
+            "url": request.url,
+            "created_at": submission.submitted_at.isoformat() if hasattr(submission, 'submitted_at') else None,
+        }
+
+        response = JSONResponse(status_code=201, content=response_data)
+        response.headers["X-Response-Time"] = f"{total_time_ms:.0f}"
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in submit_schedule_url: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -5,6 +5,7 @@ Run with: psql -U gonggang -d gonggang -f migrations/schema.sql
 
 -- Create ENUM types
 CREATE TYPE submission_status AS ENUM ('success', 'failed', 'pending');
+CREATE TYPE submission_type AS ENUM ('image', 'link', 'manual');
 
 -- Create groups table
 CREATE TABLE groups (
@@ -29,6 +30,8 @@ CREATE TABLE submissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     nickname VARCHAR(255) NOT NULL,
+    type submission_type NOT NULL DEFAULT 'image',
+    payload_ref VARCHAR(500),
     submitted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     status submission_status NOT NULL DEFAULT 'pending',
     error_reason VARCHAR(500),
