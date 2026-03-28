@@ -23,13 +23,25 @@ class FreeTimeResultRepository(BaseRepository[FreeTimeResult]):
         group_id: uuid.UUID,
         availability_by_day: Optional[dict] = None,
         free_time_intervals: Optional[dict] = None,
+        free_time_intervals_30min: Optional[dict] = None,
+        free_time_intervals_60min: Optional[dict] = None,
     ) -> FreeTimeResult:
-        """Create a new calculation result."""
+        """Create a new calculation result with duration-filtered variants.
+        
+        Args:
+            group_id: Group UUID
+            availability_by_day: Availability grid
+            free_time_intervals: ≥10min free time slots
+            free_time_intervals_30min: ≥30min free time slots
+            free_time_intervals_60min: ≥60min free time slots
+        """
         result = self.create(
             group_id=group_id,
             version=1,
             availability_by_day=availability_by_day,
             free_time_intervals=free_time_intervals,
+            free_time_intervals_30min=free_time_intervals_30min,
+            free_time_intervals_60min=free_time_intervals_60min,
             computed_at=datetime.utcnow(),
             status=SubmissionStatus.SUCCESS,
         )
@@ -48,8 +60,18 @@ class FreeTimeResultRepository(BaseRepository[FreeTimeResult]):
         group_id: uuid.UUID,
         availability_by_day: Optional[dict] = None,
         free_time_intervals: Optional[dict] = None,
+        free_time_intervals_30min: Optional[dict] = None,
+        free_time_intervals_60min: Optional[dict] = None,
     ) -> Optional[FreeTimeResult]:
-        """Update calculation result, incrementing version."""
+        """Update calculation result with duration filters, incrementing version.
+        
+        Args:
+            group_id: Group UUID
+            availability_by_day: Availability grid
+            free_time_intervals: ≥10min slots
+            free_time_intervals_30min: ≥30min slots
+            free_time_intervals_60min: ≥60min slots
+        """
         result = self.find_by_group_id(group_id)
         if not result:
             return None
@@ -63,6 +85,8 @@ class FreeTimeResultRepository(BaseRepository[FreeTimeResult]):
             FreeTimeResult.version: new_version,
             FreeTimeResult.availability_by_day: availability_by_day,
             FreeTimeResult.free_time_intervals: free_time_intervals,
+            FreeTimeResult.free_time_intervals_30min: free_time_intervals_30min,
+            FreeTimeResult.free_time_intervals_60min: free_time_intervals_60min,
             FreeTimeResult.computed_at: datetime.utcnow(),
             FreeTimeResult.status: SubmissionStatus.SUCCESS,
         })

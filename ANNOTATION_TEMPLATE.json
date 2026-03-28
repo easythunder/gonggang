@@ -1,0 +1,26 @@
+{
+  "image_file": "IMG_2777.PNG",
+  "extracted_text": "월요일 09:00-11:00 수학개론\n화요일 14:00-16:00 영어회화\n수요일 10:00-12:00 과학실험",
+  "schedule": [
+    {
+      "day": "MONDAY",
+      "start": "09:00",
+      "end": "11:00",
+      "class_name": "수학개론"
+    },
+    {
+      "day": "TUESDAY",
+      "start": "14:00",
+      "end": "16:00",
+      "class_name": "영어회화"
+    },
+    {
+      "day": "WEDNESDAY",
+      "start": "10:00",
+      "end": "12:00",
+      "class_name": "과학실험"
+    }
+  ],
+  "difficulty": "medium",
+  "notes": "사진 품질: 중간, 조명: 좋음, 기울어짐: 약간"
+}

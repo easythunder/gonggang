@@ -55,7 +55,7 @@ class FreeTimeResponse(BaseModel):
     Includes:
     - Group information
     - Participant list
-    - Free-time slots array
+    - Free-time slots array (3 versions by minimum duration)
     - Availability grid JSONB
     - Computation and expiration timestamps
     """
@@ -68,7 +68,15 @@ class FreeTimeResponse(BaseModel):
     )
     free_time: List[FreeTimeSlot] = Field(
         default_factory=list,
-        description="Array of common free-time slots"
+        description="Array of free-time slots (≥10 minutes minimum)"
+    )
+    free_time_30min: List[FreeTimeSlot] = Field(
+        default_factory=list,
+        description="Array of free-time slots (≥30 minutes minimum)"
+    )
+    free_time_60min: List[FreeTimeSlot] = Field(
+        default_factory=list,
+        description="Array of free-time slots (≥60 minutes minimum)"
     )
     availability_by_day: Optional[Dict[str, List[Dict[str, Any]]]] = Field(
         default_factory=dict,
@@ -175,48 +183,120 @@ async def get_group_free_time(
         # Get all participants (successful submissions)
         participants = db.query(Submission).filter(
             Submission.group_id == groupId,
-            Submission.status == "success"
+            Submission.status == "SUCCESS"
         ).all()
         
         # T057: Build participant list
         participants_info = [
             ParticipantInfo(
                 nickname=p.nickname,
-                submitted_at=p.created_at.isoformat() + "Z"
+                submitted_at=p.submitted_at.isoformat().replace('+00:00', 'Z')
             )
-            for p in sorted(participants, key=lambda p: p.created_at)
+            for p in sorted(participants, key=lambda p: p.submitted_at)
         ]
         
-        # T057: Build free time slots
-        free_time_slots = []
+        # T057: Build free time slots (3 versions with different minimum durations)
+        free_time_slots_10min = []
+        free_time_slots_30min = []
+        free_time_slots_60min = []
         availability_by_day = {}
-        if result and result.free_time_intervals:
-            for interval in result.free_time_intervals:
-                free_time_slots.append(FreeTimeSlot(
-                    day=interval["day"],
-                    start_minute=interval["start_minute"],
-                    end_minute=interval["end_minute"],
-                    duration_minutes=interval["duration_minutes"],
-                    overlap_count=interval.get("overlap_count", len(participants))
-                ))
+        
+        if result:
+            # Convert DB intervals to FreeTimeSlot objects
+            # ≥10 minutes version (基本版)
+            if result.free_time_intervals:
+                for day_str, intervals in result.free_time_intervals.items():
+                    day_num = int(day_str)
+                    day_names = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
+                    day_name = day_names[day_num] if 0 <= day_num < 7 else "UNKNOWN"
+                    
+                    for interval in intervals:
+                        if isinstance(interval, dict):
+                            start = interval.get("start_minute", 0)
+                            end = interval.get("end_minute", 0)
+                        else:
+                            start, end = interval[0], interval[1]
+                        
+                        free_time_slots_10min.append({
+                            "day": day_name,
+                            "start_minute": start,
+                            "end_minute": end,
+                            "duration_minutes": end - start,
+                            "overlap_count": 0
+                        })
+            
+            # ≥30 minutes version
+            if result.free_time_intervals_30min:
+                for day_str, intervals in result.free_time_intervals_30min.items():
+                    day_num = int(day_str)
+                    day_names = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
+                    day_name = day_names[day_num] if 0 <= day_num < 7 else "UNKNOWN"
+                    
+                    for interval in intervals:
+                        if isinstance(interval, dict):
+                            start = interval.get("start_minute", 0)
+                            end = interval.get("end_minute", 0)
+                        else:
+                            start, end = interval[0], interval[1]
+                        
+                        free_time_slots_30min.append({
+                            "day": day_name,
+                            "start_minute": start,
+                            "end_minute": end,
+                            "duration_minutes": end - start,
+                            "overlap_count": 0
+                        })
+            
+            # ≥60 minutes version
+            if result.free_time_intervals_60min:
+                for day_str, intervals in result.free_time_intervals_60min.items():
+                    day_num = int(day_str)
+                    day_names = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
+                    day_name = day_names[day_num] if 0 <= day_num < 7 else "UNKNOWN"
+                    
+                    for interval in intervals:
+                        if isinstance(interval, dict):
+                            start = interval.get("start_minute", 0)
+                            end = interval.get("end_minute", 0)
+                        else:
+                            start, end = interval[0], interval[1]
+                        
+                        free_time_slots_60min.append({
+                            "day": day_name,
+                            "start_minute": start,
+                            "end_minute": end,
+                            "duration_minutes": end - start,
+                            "overlap_count": 0
+                        })
         
         # T059: Get availability grid JSONB
         if result and result.availability_by_day:
-            availability_by_day = result.availability_by_day
+            # availability_by_day는 JSON이므로 검증 없이 사용
+            availability_by_day = result.availability_by_day if isinstance(result.availability_by_day, dict) else {} 
+        else:
+            availability_by_day = {}
         
-        # Build response
-        response = FreeTimeResponse(
-            group_id=str(group.id),
-            group_name=group.group_name,
-            participant_count=len(participants),
-            participants=participants_info,
-            free_time=free_time_slots,
-            availability_by_day=availability_by_day,
-            computed_at=(result.computed_at.isoformat() + "Z") if result else None,
-            expires_at=group.expires_at.isoformat() + "Z",
-            display_unit_minutes=group.display_unit_minutes,
-            version=result.version if result else 0
-        )
+        # Build response as simple dict 
+        response_data = {
+            "group_id": str(group.id),
+            "group_name": group.name,
+            "participant_count": len(participants),
+            "participants": [
+                {
+                    "nickname": p.nickname,
+                    "submitted_at": p.submitted_at.isoformat().replace('+00:00', 'Z')
+                }
+                for p in sorted(participants, key=lambda p: p.submitted_at)
+            ],
+            "free_time": free_time_slots_10min,
+            "free_time_30min": free_time_slots_30min,
+            "free_time_60min": free_time_slots_60min,
+            "availability_by_day": availability_by_day,
+            "computed_at": (result.computed_at.isoformat().replace('+00:00', 'Z')) if result else None,
+            "expires_at": group.expires_at.isoformat().replace('+00:00', 'Z'),
+            "display_unit_minutes": group.display_unit_minutes,
+            "version": result.version if result else 0
+        }
         
         # T058: Server-enforced polling interval
         poll_wait = PollingIntervalEnforcer.validate_and_ignore_client_interval(interval_ms)
@@ -227,7 +307,7 @@ async def get_group_free_time(
         # T060: Build response with headers
         from fastapi.responses import JSONResponse
         return JSONResponse(
-            content=response.dict(),
+            content=response_data,
             status_code=200,
             headers={
                 "X-Poll-Wait": str(poll_wait),
@@ -236,7 +316,7 @@ async def get_group_free_time(
             }
         )
     finally:
-        db_manager.close_session(db)
+        db.close()
 
 
 @router.get("/{groupId}")
@@ -262,7 +342,7 @@ async def get_group_info(groupId: UUID):
         
         submission_count = db.query(Submission).filter(
             Submission.group_id == groupId,
-            Submission.status == "success"
+            Submission.status == "SUCCESS"
         ).count()
         
         return format_response(
@@ -270,9 +350,9 @@ async def get_group_info(groupId: UUID):
             data={
                 "group_id": str(group.id),
                 "group_name": group.group_name,
-                "created_at": group.created_at.isoformat() + "Z",
-                "last_activity_at": group.last_activity_at.isoformat() + "Z",
-                "expires_at": group.expires_at.isoformat() + "Z",
+                "created_at": group.created_at.isoformat().replace('+00:00', 'Z'),
+                "last_activity_at": group.last_activity_at.isoformat().replace('+00:00', 'Z'),
+                "expires_at": group.expires_at.isoformat().replace('+00:00', 'Z'),
                 "invite_url": group.invite_url,
                 "share_url": group.share_url,
                 "display_unit_minutes": group.display_unit_minutes,
@@ -314,7 +394,7 @@ async def view_group_free_time_html(groupId: UUID):
         # Get participants
         participants = db.query(Submission).filter(
             Submission.group_id == groupId,
-            Submission.status == "success"
+            Submission.status == "SUCCESS"
         ).all()
         
         # Build response data
@@ -325,13 +405,13 @@ async def view_group_free_time_html(groupId: UUID):
             "participants": [
                 {
                     "nickname": p.nickname,
-                    "submitted_at": p.created_at.isoformat() + "Z"
+                    "submitted_at": p.created_at.isoformat().replace('+00:00', 'Z')
                 }
                 for p in sorted(participants, key=lambda p: p.created_at)
             ],
             "free_time": result.free_time_intervals if result else [],
             "availability_by_day": result.availability_by_day if result else {},
-            "computed_at": result.computed_at.isoformat() + "Z" if result else None,
+            "computed_at": result.computed_at.isoformat().replace('+00:00', 'Z') if result else None,
             "expires_at": group.expires_at.isoformat() + "Z",
             "display_unit_minutes": group.display_unit_minutes,
             "version": result.version if result else 0

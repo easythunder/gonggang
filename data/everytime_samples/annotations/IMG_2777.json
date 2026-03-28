@@ -1,0 +1,68 @@
+{
+  "image_file": "IMG_2777.png",
+  "extracted_text": "3:01 ef >\n\n202314 2817|\n\nMI AIZEE Vv + ©\n\nuy\n\na 3h + 2\n\ng)\n\n10\n\n=\n\nHipage Hs)\nce)\n\nOW\n\nQ ogo aFS Aatspu/2 Qe\nam\n|\n\nSs AlZHE AALEt ae oiled\n",
+  "schedule": [
+    {
+      "day": "월",
+      "start": "09:00",
+      "end": "12:00",
+      "class_name": "일반물리"
+    },
+    {
+      "day": "월",
+      "start": "12:00",
+      "end": "15:00",
+      "class_name": "빅데이터처리시각화"
+    },
+    {
+      "day": "화",
+      "start": "09:00",
+      "end": "12:00",
+      "class_name": "일반물리"
+    },
+    {
+      "day": "화",
+      "start": "12:00",
+      "end": "15:00",
+      "class_name": "빅데이터처리시각화"
+    },
+    {
+      "day": "수",
+      "start": "09:00",
+      "end": "12:00",
+      "class_name": "일반물리"
+    },
+    {
+      "day": "수",
+      "start": "12:00",
+      "end": "15:00",
+      "class_name": "빅데이터처리시각화"
+    },
+    {
+      "day": "목",
+      "start": "09:00",
+      "end": "12:00",
+      "class_name": "일반물리"
+    },
+    {
+      "day": "목",
+      "start": "12:00",
+      "end": "15:00",
+      "class_name": "빅데이터처리시각화"
+    },
+    {
+      "day": "금",
+      "start": "09:00",
+      "end": "12:00",
+      "class_name": "일반물리"
+    },
+    {
+      "day": "금",
+      "start": "12:00",
+      "end": "15:00",
+      "class_name": "빅데이터처리시각화"
+    }
+  ],
+  "difficulty": "medium",
+  "notes": "Manually annotated from HTML schedule"
+}

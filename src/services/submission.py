@@ -6,7 +6,8 @@ from src.models.models import Submission, SubmissionStatus
 from src.repositories.submission import SubmissionRepository
 from src.repositories.interval import IntervalRepository
 from src.repositories.group import GroupRepository
-from src.services.interval_extractor import IntervalExtractor, IntervalData
+from src.services.interval_extractor import IntervalExtractor, IntervalExtractionError, IntervalData
+from src.services.everytime_parser import EverytimeTimetableParser, EverytimeParserError
 from src.lib.database import DatabaseManager
 
 if TYPE_CHECKING:
@@ -22,6 +23,11 @@ class SubmissionError(Exception):
 
 class DuplicateSubmissionError(SubmissionError):
     """Raised when duplicate submission is detected."""
+    pass
+
+
+class EverytimeSubmissionParseError(SubmissionError):
+    """Raised when Everytime link parsing/extraction fails."""
     pass
 
 
@@ -156,6 +162,37 @@ class SubmissionService:
             logger.error(f"Failed to create submission: {e}", exc_info=True)
             self.session.rollback()
             raise SubmissionError(f"Submission creation failed: {str(e)}") from e
+
+    def create_submission_from_everytime_link(
+        self,
+        group_id: UUID,
+        nickname: str,
+        everytime_url: str,
+        display_unit_minutes: int,
+    ) -> Tuple[Submission, List[IntervalData]]:
+        """Create submission by parsing Everytime public timetable link.
+
+        Parses link HTML, extracts intervals, and stores them in DB.
+        """
+        parser = EverytimeTimetableParser()
+        if not parser.validate_everytime_url(everytime_url):
+            raise EverytimeSubmissionParseError("Invalid Everytime timetable URL")
+
+        try:
+            interval_pairs = parser.parse_from_url(everytime_url)
+            extractor = IntervalExtractor(display_unit_minutes=display_unit_minutes)
+            intervals = extractor.extract_intervals_from_pairs(interval_pairs)
+        except (EverytimeParserError, IntervalExtractionError) as e:
+            raise EverytimeSubmissionParseError(str(e)) from e
+
+        submission, _ = self.create_submission(
+            group_id=group_id,
+            nickname=nickname,
+            intervals=intervals,
+            ocr_success=True,
+            error_reason=None,
+        )
+        return submission, intervals
 
     def get_submission(self, submission_id: UUID) -> Optional[Submission]:
         """Retrieve a submission by ID.
@@ -310,16 +347,15 @@ class SubmissionService:
         """
         try:
             interval_dicts = [
-                {
-                    "submission_id": submission_id,
-                    "day_of_week": interval.day_of_week,
-                    "start_minute": interval.start_minute,
-                    "end_minute": interval.end_minute,
-                }
+                (
+                    interval.day_of_week,
+                    interval.start_minute,
+                    interval.end_minute,
+                )
                 for interval in intervals
             ]
 
-            self.interval_repo.create_bulk(interval_dicts)
+            self.interval_repo.create_bulk(submission_id, interval_dicts)
             logger.debug(f"Stored {len(interval_dicts)} intervals for submission {submission_id}")
         except Exception as e:
             logger.error(f"Failed to store intervals: {e}", exc_info=True)

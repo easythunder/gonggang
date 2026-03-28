@@ -27,7 +27,9 @@ class DeletionService:
         Returns:
             bool: True if expired, False otherwise
         """
-        return group.expires_at <= datetime.utcnow()
+        from datetime import datetime, timezone
+        now_utc = datetime.now(timezone.utc)
+        return group.expires_at <= now_utc
     
     @staticmethod
     def check_expiry_by_id(db: Session, group_id: UUID) -> bool:
