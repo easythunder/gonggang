@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from sqlalchemy.orm import Session
-from src.models.models import Submission, SubmissionStatus
+from src.models.models import Submission, SubmissionStatus, SubmissionType
 from src.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,9 @@ class SubmissionRepository(BaseRepository[Submission]):
         group_id: uuid.UUID,
         nickname: str,
         status: SubmissionStatus = SubmissionStatus.PENDING,
+        submission_type: SubmissionType = SubmissionType.IMAGE,
+        payload_ref: Optional[str] = None,
+        error_reason: Optional[str] = None,
     ) -> Submission:
         """Create a new submission."""
         submission = self.create(
@@ -30,6 +33,9 @@ class SubmissionRepository(BaseRepository[Submission]):
             nickname=nickname,
             submitted_at=datetime.utcnow(),
             status=status,
+            type=submission_type,
+            payload_ref=payload_ref,
+            error_reason=error_reason,
         )
         return submission
 

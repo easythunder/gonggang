@@ -2,7 +2,7 @@
 import logging
 from typing import Tuple, Optional, List, TYPE_CHECKING
 from uuid import UUID
-from src.models.models import Submission, SubmissionStatus
+from src.models.models import Submission, SubmissionStatus, SubmissionType
 from src.repositories.submission import SubmissionRepository
 from src.repositories.interval import IntervalRepository
 from src.repositories.group import GroupRepository
@@ -72,6 +72,8 @@ class SubmissionService:
         intervals: List[IntervalData],
         ocr_success: bool = True,
         error_reason: Optional[str] = None,
+        submission_type: SubmissionType = SubmissionType.IMAGE,
+        payload_ref: Optional[str] = None,
     ) -> Tuple[Submission, Optional[str]]:
         """Create a new submission with intervals.
         
@@ -81,6 +83,8 @@ class SubmissionService:
             intervals: List of IntervalData objects
             ocr_success: Whether OCR parsing succeeded
             error_reason: Error description if OCR failed
+            submission_type: Type of submission (image, link, manual)
+            payload_ref: Reference to payload (URL for link type)
         
         Returns:
             Tuple of (Submission object, error_code)
@@ -118,6 +122,8 @@ class SubmissionService:
                 nickname=nickname,
                 status=status,
                 error_reason=error_reason,
+                submission_type=submission_type,
+                payload_ref=payload_ref,
             )
 
             logger.info(

@@ -72,6 +72,28 @@ curl -X POST http://localhost:8000/groups/{groupId}/submissions \
 # }
 ```
 
+### Submit schedule URL
+```bash
+curl -X POST http://localhost:8000/api/submissions/url \
+  -H "Content-Type: application/json" \
+  -d '{
+    "group_id": "uuid",
+    "nickname": "happy_blue_lion",
+    "url": "https://everytime.kr/@abc123"
+  }'
+
+# Response:
+# {
+#   "submission_id": "uuid",
+#   "nickname": "happy_blue_lion",
+#   "group_id": "uuid",
+#   "type": "link",
+#   "status": "success",
+#   "url": "https://everytime.kr/@abc123",
+#   "created_at": "2026-03-16T10:30:00Z"
+# }
+```
+
 ### Poll results
 ```bash
 curl -X GET "http://localhost:8000/groups/{groupId}/free-time?interval_ms=2000"
